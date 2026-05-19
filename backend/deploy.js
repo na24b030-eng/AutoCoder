@@ -1,16 +1,19 @@
 require('dotenv').config();
 
+// ── PUSH TO GITHUB ────────────────────────────────────────
 async function pushToGitHub(blueprint, dbCode, backendCode, frontendCode, readme) {
   const repoName = blueprint.project_name
     .toLowerCase()
     .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '');
+    .replace(/[^a-z0-9-]/g, '')
+    .slice(0, 40);
 
   const headers = {
     Authorization: `token ${process.env.GITHUB_TOKEN}`,
     'Content-Type': 'application/json',
   };
 
+  // Create repo
   const repoRes = await fetch('https://api.github.com/user/repos', {
     method: 'POST',
     headers,
@@ -23,15 +26,22 @@ async function pushToGitHub(blueprint, dbCode, backendCode, frontendCode, readme
   });
 
   const repo = await repoRes.json();
-  if (!repo.full_name) throw new Error('GitHub repo creation failed: ' + (repo.message || JSON.stringify(repo)));
+  if (!repo.full_name) {
+    throw new Error('GitHub repo creation failed: ' + (repo.message || JSON.stringify(repo)));
+  }
 
+  console.log('✅ GitHub repo created:', repo.full_name);
+
+  // All files to push
   const files = {
     'backend/server.js': backendCode,
     'backend/db/schema.js': dbCode,
     'backend/package.json': JSON.stringify({
       name: `${repoName}-backend`,
       version: '1.0.0',
-      scripts: { start: 'node server.js' },
+      scripts: {
+        start: 'node server.js',
+      },
       dependencies: {
         express: '^4.18.2',
         cors: '^2.8.5',
@@ -76,7 +86,11 @@ export default defineConfig({ plugins: [react()] })`,
       name: `${repoName}-frontend`,
       version: '1.0.0',
       type: 'module',
-      scripts: { dev: 'vite', build: 'vite build' },
+      scripts: {
+        dev: 'vite',
+        build: 'vite build',
+        preview: 'vite preview',
+      },
       dependencies: {
         react: '^18.2.0',
         'react-dom': '^18.2.0',
@@ -94,99 +108,132 @@ export default defineConfig({ plugins: [react()] })`,
     'README.md': readme || `# ${blueprint.project_name}`,
   };
 
+  // Push each file
   for (const [filePath, content] of Object.entries(files)) {
-    await fetch(`https://api.github.com/repos/${repo.full_name}/contents/${filePath}`, {
-      method: 'PUT',
-      headers,
-      body: JSON.stringify({
-        message: `Add ${filePath}`,
-        content: Buffer.from(content).toString('base64'),
-      }),
-    });
+    const res = await fetch(
+      `https://api.github.com/repos/${repo.full_name}/contents/${filePath}`,
+      {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({
+          message: `Add ${filePath}`,
+          content: Buffer.from(content).toString('base64'),
+        }),
+      }
+    );
+    const result = await res.json();
+    if (result.content) {
+      console.log(`✅ Pushed: ${filePath}`);
+    } else {
+      console.log(`⚠️ Issue pushing: ${filePath}`, result.message);
+    }
   }
 
   return { repoName, repoFullName: repo.full_name };
 }
 
+// ── DEPLOY FRONTEND TO VERCEL ─────────────────────────────
 async function deployToVercel(repoFullName, repoName) {
   const headers = {
     Authorization: `Bearer ${process.env.VERCEL_TOKEN}`,
     'Content-Type': 'application/json',
   };
 
+  // Create project
   const projectRes = await fetch('https://api.vercel.com/v9/projects', {
     method: 'POST',
     headers,
     body: JSON.stringify({
       name: repoName,
-      gitRepository: { type: 'github', repo: repoFullName },
+      gitRepository: {
+        type: 'github',
+        repo: repoFullName,
+      },
       rootDirectory: 'frontend',
       framework: 'vite',
     }),
   });
 
   const project = await projectRes.json();
-  if (!project.id) throw new Error('Vercel failed: ' + JSON.stringify(project));
+  if (!project.id) {
+    throw new Error('Vercel project creation failed: ' + JSON.stringify(project));
+  }
 
+  console.log('✅ Vercel project created:', project.name);
+
+  // Trigger deployment
   await fetch('https://api.vercel.com/v13/deployments', {
     method: 'POST',
     headers,
     body: JSON.stringify({
       name: repoName,
-      gitSource: { type: 'github', repo: repoFullName, ref: 'main' },
+      gitSource: {
+        type: 'github',
+        repo: repoFullName,
+        ref: 'main',
+      },
     }),
   });
 
-  return `https://${repoName}.vercel.app`;
+  const frontendUrl = `https://${repoName}.vercel.app`;
+  console.log('✅ Vercel deployment triggered:', frontendUrl);
+  return frontendUrl;
 }
 
-async function deployToRailway(repoFullName, repoName) {
+// ── DEPLOY BACKEND TO RENDER ──────────────────────────────
+async function deployToRender(repoFullName, repoName) {
   const headers = {
-    Authorization: `Bearer ${process.env.RAILWAY_TOKEN}`,
+    Authorization: `Bearer ${process.env.RENDER_API_KEY}`,
     'Content-Type': 'application/json',
+    'Accept': 'application/json',
   };
 
-  const projectRes = await fetch('https://backboard.railway.app/graphql/v2', {
+  // Create web service on Render
+  const serviceRes = await fetch('https://api.render.com/v1/services', {
     method: 'POST',
     headers,
     body: JSON.stringify({
-      query: `mutation {
-        projectCreate(input: { name: "${repoName}-api" }) {
-          id name
-        }
-      }`,
+      type: 'web_service',
+      name: `${repoName}-api`,
+      ownerId: process.env.RENDER_OWNER_ID,
+      repo: `https://github.com/${repoFullName}`,
+      branch: 'main',
+      rootDir: 'backend',
+      buildCommand: 'npm install',
+      startCommand: 'node server.js',
+      envVars: [
+        { key: 'NODE_ENV', value: 'production' },
+        { key: 'PORT', value: '3001' },
+      ],
+      plan: 'free',
+      region: 'oregon',
     }),
   });
 
-  const projectData = await projectRes.json();
-  const projectId = projectData?.data?.projectCreate?.id;
-  if (!projectId) throw new Error('Railway project creation failed: ' + JSON.stringify(projectData));
+  const service = await serviceRes.json();
 
-  await fetch('https://backboard.railway.app/graphql/v2', {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      query: `mutation {
-        serviceCreate(input: {
-          projectId: "${projectId}",
-          source: { repo: "${repoFullName}", branch: "main" },
-          rootDirectory: "backend"
-        }) {
-          id name
-        }
-      }`,
-    }),
-  });
+  if (!service.service?.id) {
+    throw new Error('Render deployment failed: ' + JSON.stringify(service));
+  }
 
-  return `https://${repoName}-api.up.railway.app`;
+  const backendUrl = `https://${repoName}-api.onrender.com`;
+  console.log('✅ Render deployment triggered:', backendUrl);
+  return backendUrl;
 }
 
+// ── MAIN DEPLOY FUNCTION ──────────────────────────────────
 async function deployApp(blueprint, dbCode, backendCode, frontendCode, readme) {
-  const { repoName, repoFullName } = await pushToGitHub(blueprint, dbCode, backendCode, frontendCode, readme);
+  console.log('🚀 Starting auto-deployment...');
+
+  const { repoName, repoFullName } = await pushToGitHub(
+    blueprint, dbCode, backendCode, frontendCode, readme
+  );
+
   const [frontendUrl, backendUrl] = await Promise.all([
     deployToVercel(repoFullName, repoName),
-    deployToRailway(repoFullName, repoName),
+    deployToRender(repoFullName, repoName),
   ]);
+
   return {
     githubUrl: `https://github.com/${repoFullName}`,
     frontendUrl,
