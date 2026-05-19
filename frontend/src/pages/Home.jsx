@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API = 'https://autocoder-8qa6.onrender.com';
 
 const EXAMPLES = [
   { label: 'E-Commerce', prompt: 'Create a luxury jewelry e-commerce store with product catalog and cart' },
