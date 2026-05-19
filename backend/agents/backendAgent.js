@@ -1,0 +1,39 @@
+require('dotenv').config();
+
+async function runBackendAgent(blueprint) {
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': 'https://autocoder.vercel.app',
+      'X-Title': 'GenAI AutoCoder',
+    },
+    body: JSON.stringify({
+      model: 'openrouter/free',
+      messages: [{ role: 'user', content: `You are the Backend Agent in an AutoCoder system.
+Blueprint: ${JSON.stringify(blueprint, null, 2)}
+
+Write a complete Express.js server.js file with:
+- All CRUD routes for products with search and filter
+- Cart management endpoints
+- Order creation and retrieval
+- Proper error handling with try/catch on every route
+- Input validation
+- CORS configured for port 5173
+- At least 12 real API endpoints
+- Use better-sqlite3 for database
+
+Reply with ONLY JavaScript code, no markdown, no backticks, no explanation.` }]
+    })
+  });
+  const data = await response.json();
+  if (!data.choices) throw new Error('Backend Agent failed: ' + JSON.stringify(data));
+  return data.choices[0].message.content
+    .replace(/```javascript\n?/g,'')
+    .replace(/```js\n?/g,'')
+    .replace(/```\n?/g,'')
+    .trim();
+}
+
+module.exports = { runBackendAgent };
