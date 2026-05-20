@@ -10,7 +10,13 @@ const { runAssembler } = require('./agents/assembler');
 const { deployApp } = require('./deploy');
 
 const app = express();
-app.use(cors({ origin: 'http://localhost:5173' }));
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'https://autocoder.vercel.app',
+    /\.vercel\.app$/,
+  ]
+}));
 app.use(express.json());
 
 app.post('/api/generate', async (req, res) => {
