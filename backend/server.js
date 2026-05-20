@@ -13,8 +13,7 @@ const app = express();
 app.use(cors({
   origin: [
     'http://localhost:5173',
-    'https://autocoder.vercel.app',
-    /\.vercel\.app$/,
+    'https://auto-coder-sigma.vercel.app',
   ]
 }));
 app.use(express.json());
