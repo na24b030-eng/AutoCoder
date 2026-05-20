@@ -13,7 +13,6 @@ async function pushToGitHub(blueprint, dbCode, backendCode, frontendCode, readme
     'Content-Type': 'application/json',
   };
 
-  // Create repo
   const repoRes = await fetch('https://api.github.com/user/repos', {
     method: 'POST',
     headers,
@@ -29,19 +28,15 @@ async function pushToGitHub(blueprint, dbCode, backendCode, frontendCode, readme
   if (!repo.full_name) {
     throw new Error('GitHub repo creation failed: ' + (repo.message || JSON.stringify(repo)));
   }
-
   console.log('✅ GitHub repo created:', repo.full_name);
 
-  // All files to push
   const files = {
     'backend/server.js': backendCode,
     'backend/db/schema.js': dbCode,
     'backend/package.json': JSON.stringify({
       name: `${repoName}-backend`,
       version: '1.0.0',
-      scripts: {
-        start: 'node server.js',
-      },
+      scripts: { start: 'node server.js' },
       dependencies: {
         express: '^4.18.2',
         cors: '^2.8.5',
@@ -108,7 +103,6 @@ export default defineConfig({ plugins: [react()] })`,
     'README.md': readme || `# ${blueprint.project_name}`,
   };
 
-  // Push each file
   for (const [filePath, content] of Object.entries(files)) {
     const res = await fetch(
       `https://api.github.com/repos/${repo.full_name}/contents/${filePath}`,
@@ -139,7 +133,6 @@ async function deployToVercel(repoFullName, repoName) {
     'Content-Type': 'application/json',
   };
 
-  // Create project
   const projectRes = await fetch('https://api.vercel.com/v9/projects', {
     method: 'POST',
     headers,
@@ -158,10 +151,8 @@ async function deployToVercel(repoFullName, repoName) {
   if (!project.id) {
     throw new Error('Vercel project creation failed: ' + JSON.stringify(project));
   }
-
   console.log('✅ Vercel project created:', project.name);
 
-  // Trigger deployment
   await fetch('https://api.vercel.com/v13/deployments', {
     method: 'POST',
     headers,
@@ -188,7 +179,6 @@ async function deployToRender(repoFullName, repoName) {
     'Accept': 'application/json',
   };
 
-  // Create web service on Render
   const serviceRes = await fetch('https://api.render.com/v1/services', {
     method: 'POST',
     headers,
@@ -197,16 +187,20 @@ async function deployToRender(repoFullName, repoName) {
       name: `${repoName}-api`,
       ownerId: process.env.RENDER_OWNER_ID,
       repo: `https://github.com/${repoFullName}`,
-      branch: 'main',
-      rootDir: 'backend',
-      buildCommand: 'npm install',
-      startCommand: 'node server.js',
-      envVars: [
-        { key: 'NODE_ENV', value: 'production' },
-        { key: 'PORT', value: '3001' },
-      ],
-      plan: 'free',
-      region: 'oregon',
+      autoDeploy: 'yes',
+      serviceDetails: {
+        env: 'node',
+        region: 'oregon',
+        plan: 'free',
+        branch: 'main',
+        buildCommand: 'npm install',
+        startCommand: 'node server.js',
+        rootDir: 'backend',
+        envVars: [
+          { key: 'NODE_ENV', value: 'production' },
+          { key: 'PORT', value: '3001' },
+        ],
+      },
     }),
   });
 
@@ -222,47 +216,23 @@ async function deployToRender(repoFullName, repoName) {
 }
 
 // ── MAIN DEPLOY FUNCTION ──────────────────────────────────
-async function deployToRender(repoFullName, repoName) {
-  const headers = {
-    Authorization: `Bearer ${process.env.RENDER_API_KEY}`,
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
+async function deployApp(blueprint, dbCode, backendCode, frontendCode, readme) {
+  console.log('🚀 Starting auto-deployment...');
+
+  const { repoName, repoFullName } = await pushToGitHub(
+    blueprint, dbCode, backendCode, frontendCode, readme
+  );
+
+  const [frontendUrl, backendUrl] = await Promise.all([
+    deployToVercel(repoFullName, repoName),
+    deployToRender(repoFullName, repoName),
+  ]);
+
+  return {
+    githubUrl: `https://github.com/${repoFullName}`,
+    frontendUrl,
+    backendUrl,
   };
-
-  const serviceRes = await fetch('https://api.render.com/v1/services', {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      type: 'web_service',
-      name: `${repoName}-api`,
-      ownerId: process.env.RENDER_OWNER_ID,
-      serviceDetails: {
-        env: 'node',
-        region: 'oregon',
-        plan: 'free',
-        branch: 'main',
-        buildCommand: 'npm install',
-        startCommand: 'node server.js',
-        rootDir: 'backend',
-        envVars: [
-          { key: 'NODE_ENV', value: 'production' },
-          { key: 'PORT', value: '3001' },
-        ],
-      },
-      autoDeploy: 'yes',
-      repo: `https://github.com/${repoFullName}`,
-    }),
-  });
-
-  const service = await serviceRes.json();
-
-  if (!service.service?.id) {
-    throw new Error('Render deployment failed: ' + JSON.stringify(service));
-  }
-
-  const backendUrl = `https://${repoName}-api.onrender.com`;
-  console.log('✅ Render deployment triggered:', backendUrl);
-  return backendUrl;
 }
 
 module.exports = { deployApp };
