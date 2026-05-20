@@ -69,5 +69,17 @@ app.get('/api/generations/:id', (req, res) => {
   res.json(row);
 });
 
+app.get('/api/debug', (req, res) => {
+  res.json({
+    env: {
+      hasOpenRouter: !!process.env.OPENROUTER_API_KEY,
+      hasGithub: !!process.env.GITHUB_TOKEN,
+      hasVercel: !!process.env.VERCEL_TOKEN,
+      hasRender: !!process.env.RENDER_API_KEY,
+      nodeEnv: process.env.NODE_ENV,
+    }
+  });
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
