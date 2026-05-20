@@ -33,6 +33,7 @@ async function pushToGitHub(blueprint, dbCode, backendCode, frontendCode, readme
   const files = {
     'backend/server.js': backendCode,
     'backend/db/schema.js': dbCode,
+    'backend/.node-version': '20.11.1',
     'backend/package.json': JSON.stringify({
       name: `${repoName}-backend`,
       version: '1.0.0',
@@ -40,7 +41,7 @@ async function pushToGitHub(blueprint, dbCode, backendCode, frontendCode, readme
       dependencies: {
         express: '^4.18.2',
         cors: '^2.8.5',
-        'better-sqlite3': '^9.4.3',
+        'better-sqlite3': '^9.6.0',
         dotenv: '^16.4.1',
       },
     }, null, 2),
