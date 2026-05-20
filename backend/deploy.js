@@ -172,6 +172,7 @@ async function deployToVercel(repoFullName, repoName) {
 }
 
 // ── DEPLOY BACKEND TO RENDER ──────────────────────────────
+// ── DEPLOY BACKEND TO RENDER ──────────────────────────────
 async function deployToRender(repoFullName, repoName) {
   const headers = {
     Authorization: `Bearer ${process.env.RENDER_API_KEY}`,
@@ -193,13 +194,15 @@ async function deployToRender(repoFullName, repoName) {
         region: 'oregon',
         plan: 'free',
         branch: 'main',
-        buildCommand: 'npm install',
-        startCommand: 'node server.js',
         rootDir: 'backend',
         envVars: [
           { key: 'NODE_ENV', value: 'production' },
           { key: 'PORT', value: '3001' },
         ],
+        envSpecificDetails: {
+          buildCommand: 'npm install',
+          startCommand: 'node server.js',
+        },
       },
     }),
   });
