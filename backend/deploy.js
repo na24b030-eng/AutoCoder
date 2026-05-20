@@ -222,23 +222,47 @@ async function deployToRender(repoFullName, repoName) {
 }
 
 // ── MAIN DEPLOY FUNCTION ──────────────────────────────────
-async function deployApp(blueprint, dbCode, backendCode, frontendCode, readme) {
-  console.log('🚀 Starting auto-deployment...');
-
-  const { repoName, repoFullName } = await pushToGitHub(
-    blueprint, dbCode, backendCode, frontendCode, readme
-  );
-
-  const [frontendUrl, backendUrl] = await Promise.all([
-    deployToVercel(repoFullName, repoName),
-    deployToRender(repoFullName, repoName),
-  ]);
-
-  return {
-    githubUrl: `https://github.com/${repoFullName}`,
-    frontendUrl,
-    backendUrl,
+async function deployToRender(repoFullName, repoName) {
+  const headers = {
+    Authorization: `Bearer ${process.env.RENDER_API_KEY}`,
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
   };
+
+  const serviceRes = await fetch('https://api.render.com/v1/services', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      type: 'web_service',
+      name: `${repoName}-api`,
+      ownerId: process.env.RENDER_OWNER_ID,
+      serviceDetails: {
+        env: 'node',
+        region: 'oregon',
+        plan: 'free',
+        branch: 'main',
+        buildCommand: 'npm install',
+        startCommand: 'node server.js',
+        rootDir: 'backend',
+        envVars: [
+          { key: 'NODE_ENV', value: 'production' },
+          { key: 'PORT', value: '3001' },
+        ],
+      },
+      autoDeploy: 'yes',
+      repo: `https://github.com/${repoFullName}`,
+    }),
+  });
+
+  const service = await serviceRes.json();
+
+  if (!service.service?.id) {
+    throw new Error('Render deployment failed: ' + JSON.stringify(service));
+  }
+
+  const backendUrl = `https://${repoName}-api.onrender.com`;
+  console.log('✅ Render deployment triggered:', backendUrl);
+  return backendUrl;
 }
 
 module.exports = { deployApp };
