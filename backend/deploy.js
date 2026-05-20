@@ -172,7 +172,6 @@ async function deployToVercel(repoFullName, repoName) {
 }
 
 // ── DEPLOY BACKEND TO RENDER ──────────────────────────────
-// ── DEPLOY BACKEND TO RENDER ──────────────────────────────
 async function deployToRender(repoFullName, repoName) {
   const headers = {
     Authorization: `Bearer ${process.env.RENDER_API_KEY}`,
@@ -189,12 +188,12 @@ async function deployToRender(repoFullName, repoName) {
       ownerId: process.env.RENDER_OWNER_ID,
       repo: `https://github.com/${repoFullName}`,
       autoDeploy: 'yes',
+      rootDir: 'backend',        // ← MOVED to top level (was inside serviceDetails)
       serviceDetails: {
         env: 'node',
         region: 'oregon',
         plan: 'free',
         branch: 'main',
-        rootDir: 'backend',
         envVars: [
           { key: 'NODE_ENV', value: 'production' },
           { key: 'PORT', value: '3001' },
