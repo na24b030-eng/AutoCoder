@@ -1,6 +1,5 @@
 require('dotenv').config();
 
-// ── PUSH TO GITHUB ────────────────────────────────────────
 async function pushToGitHub(blueprint, dbCode, backendCode, frontendCode, readme) {
   const repoName = blueprint.project_name
     .toLowerCase()
@@ -127,7 +126,6 @@ export default defineConfig({ plugins: [react()] })`,
   return { repoName, repoFullName: repo.full_name };
 }
 
-// ── DEPLOY FRONTEND TO VERCEL ─────────────────────────────
 async function deployToVercel(repoFullName, repoName) {
   const headers = {
     Authorization: `Bearer ${process.env.VERCEL_TOKEN}`,
@@ -169,7 +167,6 @@ async function deployToVercel(repoFullName, repoName) {
 
   const deploy = await deployRes.json();
   console.log('🔍 Vercel deploy response:', JSON.stringify(deploy).slice(0, 200));
-
   if (!deploy.id && !deploy.url) {
     throw new Error('Vercel deployment trigger failed: ' + JSON.stringify(deploy));
   }
@@ -179,7 +176,6 @@ async function deployToVercel(repoFullName, repoName) {
   return frontendUrl;
 }
 
-// ── DEPLOY BACKEND TO RENDER ──────────────────────────────
 async function deployToRender(repoFullName, repoName) {
   const headers = {
     Authorization: `Bearer ${process.env.RENDER_API_KEY}`,
@@ -224,7 +220,6 @@ async function deployToRender(repoFullName, repoName) {
   return backendUrl;
 }
 
-// ── MAIN DEPLOY FUNCTION ──────────────────────────────────
 async function deployApp(blueprint, dbCode, backendCode, frontendCode, readme) {
   console.log('🚀 Starting auto-deployment...');
 

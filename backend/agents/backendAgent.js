@@ -29,22 +29,18 @@ async function runBackendAgent(blueprint) {
   const text = await callOpenRouter(`You are the Backend Agent in an AutoCoder system.
 Blueprint: ${JSON.stringify(blueprint, null, 2)}
 
-Write a complete Express.js server.js file with:
-- All CRUD routes for products with search and filter
-- Cart management endpoints
-- Order creation and retrieval
-- Proper error handling with try/catch on every route
-- Input validation
-- CORS configured for all origins
-- At least 12 real API endpoints
-- Use better-sqlite3 for database
-- Import db from './db/schema'
+Write a complete Express.js server.js file.
 
-CRITICAL RULES FOR better-sqlite3:
-- Every db.prepare() call must contain ONLY ONE single SQL statement
-- NEVER chain multiple SQL statements with semicolons inside db.prepare()
-- NEVER use db.exec() anywhere in server.js
-- Each query must be its own separate db.prepare().run() or db.prepare().get() or db.prepare().all() call
+EXACT RULES — follow precisely:
+1. Only require these packages: express, cors, path, better-sqlite3, dotenv — NO OTHER PACKAGES
+2. Import db with: const db = require('./db/schema');
+3. Every db.prepare() must contain EXACTLY ONE SQL statement — no semicolons inside prepare()
+4. Never use db.exec() in server.js
+5. Use cors({ origin: '*' }) to allow all origins
+6. Include proper try/catch on every route
+7. Listen on: const PORT = process.env.PORT || 3001; app.listen(PORT)
+8. Do NOT implement any authentication, login, or registration routes
+9. Include GET, POST, PUT, DELETE routes for the main resource
 
 Reply with ONLY JavaScript code, no markdown, no backticks, no explanation.`);
 

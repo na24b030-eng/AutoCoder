@@ -30,19 +30,15 @@ async function runDBAgent(blueprint) {
 Blueprint: ${JSON.stringify(blueprint, null, 2)}
 
 Write COMPLETE Node.js code for db/schema.js using better-sqlite3.
-Include:
-- All CREATE TABLE statements with proper columns, types, constraints
-- Foreign keys between related tables
-- At least 8 realistic seed data rows for the main table
-- Index creation for performance
-- Export the db instance
 
-CRITICAL RULES FOR better-sqlite3:
-- Use db.exec() for ALL CREATE TABLE and CREATE INDEX statements
-- Each INSERT must be a SEPARATE db.prepare('INSERT INTO ...').run(...) call
-- NEVER put multiple SQL statements inside a single db.prepare() call
-- NEVER use semicolons to chain multiple statements inside db.prepare()
-- NEVER use db.exec() for INSERT statements
+EXACT RULES — follow precisely:
+1. Start with: const Database = require('better-sqlite3'); const path = require('path'); const db = new Database(path.join(__dirname, '..', 'app.db'));
+2. Use db.exec() with a template literal for ALL CREATE TABLE statements together
+3. Each INSERT must be: db.prepare('INSERT INTO table (col1, col2) VALUES (?, ?)').run(val1, val2);
+4. Every db.prepare() must contain EXACTLY ONE SQL statement — no semicolons inside
+5. End with: module.exports = db;
+6. Do NOT use bcrypt, jsonwebtoken, or any package other than better-sqlite3 and path
+7. Include 5 realistic seed rows for the main table
 
 Reply with ONLY JavaScript code, no markdown, no backticks, no explanation.`);
 

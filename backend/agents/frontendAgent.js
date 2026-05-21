@@ -28,23 +28,22 @@ async function callOpenRouter(prompt) {
 async function runFrontendAgent(blueprint, backendUrl) {
   const text = await callOpenRouter(`You are the Frontend Agent in an AutoCoder system.
 Blueprint: ${JSON.stringify(blueprint, null, 2)}
+Backend API URL: ${backendUrl}
 
-Write a complete React App.jsx with:
-- React Router for all pages: ${blueprint.pages?.join(', ')}
-- Global cart state using useContext + useReducer
-- All pages: Home, Product Catalog, Product Detail, Cart, Checkout, Order Confirmation
-- API calls using fetch() to ${backendUrl}/api
-- Beautiful Tailwind CSS styling appropriate for the project theme
-- Loading states, error states, empty states
-- Mobile responsive design
+Write a complete React App.jsx file.
 
-CRITICAL RULES:
-- Use ONLY libraries already in package.json: react, react-dom, react-router-dom, axios
-- Do NOT import any external icon libraries or UI libraries not listed above
-- All components must be in this single App.jsx file
-- No TypeScript, only plain JSX
+EXACT RULES — follow precisely:
+1. Only import from: react, react-dom, react-router-dom — NO OTHER IMPORTS
+2. Do NOT import any icon libraries, UI libraries, or external packages
+3. Use inline styles or plain Tailwind classes only — no external CSS imports except index.css
+4. All API calls must use fetch('${backendUrl}/api/...')
+5. Every JSX opening tag must have a matching closing tag with the EXACT same name
+6. Do NOT include any login, register, or authentication pages
+7. Use React Router v6 with BrowserRouter, Routes, Route
+8. Keep all components in this single App.jsx file
+9. No TypeScript — plain JSX only
+10. Export default App as the root component wrapped in BrowserRouter
 
-Write ONE complete App.jsx file with all components included.
 Reply with ONLY JSX code, no markdown, no backticks, no explanation.`);
 
   return text

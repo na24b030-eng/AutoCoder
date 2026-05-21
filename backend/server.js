@@ -26,8 +26,6 @@ app.post('/api/generate', async (req, res) => {
     'INSERT INTO generations (prompt, status) VALUES (?, ?)'
   ).run(prompt, 'running');
 
-  res.json({ id, status: 'running' });
-
   try {
     const blueprint = await runOrchestrator(prompt);
 
@@ -47,18 +45,19 @@ app.post('/api/generate', async (req, res) => {
     const readme = await runAssembler(blueprint);
     const urls = await deployApp(blueprint, dbCode, backendCode, frontendCode, readme);
 
-    db.prepare(`UPDATE generations SET
-      status='complete', blueprint=?, db_code=?,
+    db.prepare(`UPDATE generations SET status='complete', blueprint=?, db_code=?,
       backend_code=?, frontend_code=?, readme=?,
-      frontend_url=?, backend_url=?, github_url=?
-      WHERE id=?`
+      frontend_url=?, backend_url=?, github_url=? WHERE id=?`
     ).run(JSON.stringify(blueprint), dbCode, backendCode, frontendCode, readme,
       urls.frontendUrl, urls.backendUrl, urls.githubUrl, id);
+
+    res.json({ id, blueprint, dbCode, backendCode, frontendCode, readme, urls });
 
   } catch (err) {
     console.error('GENERATION ERROR:', err);
     db.prepare('UPDATE generations SET status=?, error=? WHERE id=?')
       .run('failed', err.message, id);
+    res.status(500).json({ error: err.message });
   }
 });
 

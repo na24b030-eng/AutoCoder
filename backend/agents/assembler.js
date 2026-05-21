@@ -18,7 +18,6 @@ async function callOpenRouter(prompt) {
     });
     const data = await response.json();
     if (data.choices) return data.choices[0].message.content;
-
     const retryAfter = data.error?.metadata?.retry_after_seconds || 30;
     console.log(`⚠️ Assembler rate limited (attempt ${i+1}/${maxRetries}), retrying in ${retryAfter}s...`);
     await new Promise(r => setTimeout(r, retryAfter * 1000));
@@ -27,15 +26,12 @@ async function callOpenRouter(prompt) {
 }
 
 async function runAssembler(blueprint) {
-  const text = await callOpenRouter(`Write a complete README.md for:
+  const text = await callOpenRouter(`Write a README.md for:
 Project: ${blueprint.project_name}
 Description: ${blueprint.description}
 Features: ${blueprint.features?.join(', ')}
 Stack: React + Tailwind (frontend), Express + SQLite (backend)
-
-Include: overview, folder structure, setup instructions, API endpoints, feature list.
 Reply with ONLY markdown content.`);
-
   return text;
 }
 

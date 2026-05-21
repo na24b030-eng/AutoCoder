@@ -18,7 +18,6 @@ async function callOpenRouter(prompt) {
     });
     const data = await response.json();
     if (data.choices) return data.choices[0].message.content;
-
     const retryAfter = data.error?.metadata?.retry_after_seconds || 30;
     console.log(`⚠️ Orchestrator rate limited (attempt ${i+1}/${maxRetries}), retrying in ${retryAfter}s...`);
     await new Promise(r => setTimeout(r, retryAfter * 1000));
@@ -32,15 +31,15 @@ The user wants to build: "${userPrompt}"
 
 Reply ONLY with valid JSON, no markdown, no backticks, no explanation:
 {
-  "project_name": "string",
+  "project_name": "string (lowercase, no spaces, use hyphens)",
   "description": "string",
   "features": ["feature1", "feature2", "feature3"],
-  "db_tables": ["table1", "table2", "table3"],
+  "db_tables": ["table1", "table2"],
   "api_routes": [
-    {"method": "GET", "path": "/api/products", "desc": "list all products"},
-    {"method": "POST", "path": "/api/orders", "desc": "create order"}
+    {"method": "GET", "path": "/api/items", "desc": "list all items"},
+    {"method": "POST", "path": "/api/items", "desc": "create item"}
   ],
-  "pages": ["Home", "Catalog", "Cart", "Checkout", "OrderConfirmation"]
+  "pages": ["Home", "List", "Detail"]
 }`);
 
   const clean = text.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
