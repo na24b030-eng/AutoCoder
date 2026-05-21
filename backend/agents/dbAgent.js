@@ -18,7 +18,6 @@ async function callOpenRouter(prompt) {
     });
     const data = await response.json();
     if (data.choices) return data.choices[0].message.content;
-
     const retryAfter = data.error?.metadata?.retry_after_seconds || 30;
     console.log(`⚠️ DB Agent rate limited (attempt ${i+1}/${maxRetries}), retrying in ${retryAfter}s...`);
     await new Promise(r => setTimeout(r, retryAfter * 1000));
@@ -34,9 +33,16 @@ Write COMPLETE Node.js code for db/schema.js using better-sqlite3.
 Include:
 - All CREATE TABLE statements with proper columns, types, constraints
 - Foreign keys between related tables
-- At least 8 realistic seed data rows for the main product table
+- At least 8 realistic seed data rows for the main table
 - Index creation for performance
 - Export the db instance
+
+CRITICAL RULES FOR better-sqlite3:
+- Use db.exec() for ALL CREATE TABLE and CREATE INDEX statements
+- Each INSERT must be a SEPARATE db.prepare('INSERT INTO ...').run(...) call
+- NEVER put multiple SQL statements inside a single db.prepare() call
+- NEVER use semicolons to chain multiple statements inside db.prepare()
+- NEVER use db.exec() for INSERT statements
 
 Reply with ONLY JavaScript code, no markdown, no backticks, no explanation.`);
 

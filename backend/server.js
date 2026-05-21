@@ -26,13 +26,22 @@ app.post('/api/generate', async (req, res) => {
     'INSERT INTO generations (prompt, status) VALUES (?, ?)'
   ).run(prompt, 'running');
 
+  res.json({ id, status: 'running' });
+
   try {
     const blueprint = await runOrchestrator(prompt);
+
+    const repoName = blueprint.project_name
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9-]/g, '')
+      .slice(0, 40);
+    const backendUrl = `https://${repoName}-api.onrender.com`;
 
     const [dbCode, backendCode, frontendCode] = await Promise.all([
       runDBAgent(blueprint),
       runBackendAgent(blueprint),
-      runFrontendAgent(blueprint),
+      runFrontendAgent(blueprint, backendUrl),
     ]);
 
     const readme = await runAssembler(blueprint);
@@ -46,13 +55,10 @@ app.post('/api/generate', async (req, res) => {
     ).run(JSON.stringify(blueprint), dbCode, backendCode, frontendCode, readme,
       urls.frontendUrl, urls.backendUrl, urls.githubUrl, id);
 
-    res.json({ id, blueprint, dbCode, backendCode, frontendCode, readme, urls });
-
   } catch (err) {
     console.error('GENERATION ERROR:', err);
     db.prepare('UPDATE generations SET status=?, error=? WHERE id=?')
       .run('failed', err.message, id);
-    res.status(500).json({ error: err.message });
   }
 });
 

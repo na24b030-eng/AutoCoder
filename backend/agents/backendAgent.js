@@ -18,7 +18,6 @@ async function callOpenRouter(prompt) {
     });
     const data = await response.json();
     if (data.choices) return data.choices[0].message.content;
-
     const retryAfter = data.error?.metadata?.retry_after_seconds || 30;
     console.log(`⚠️ Backend Agent rate limited (attempt ${i+1}/${maxRetries}), retrying in ${retryAfter}s...`);
     await new Promise(r => setTimeout(r, retryAfter * 1000));
@@ -36,9 +35,16 @@ Write a complete Express.js server.js file with:
 - Order creation and retrieval
 - Proper error handling with try/catch on every route
 - Input validation
-- CORS configured for port 5173
+- CORS configured for all origins
 - At least 12 real API endpoints
 - Use better-sqlite3 for database
+- Import db from './db/schema'
+
+CRITICAL RULES FOR better-sqlite3:
+- Every db.prepare() call must contain ONLY ONE single SQL statement
+- NEVER chain multiple SQL statements with semicolons inside db.prepare()
+- NEVER use db.exec() anywhere in server.js
+- Each query must be its own separate db.prepare().run() or db.prepare().get() or db.prepare().all() call
 
 Reply with ONLY JavaScript code, no markdown, no backticks, no explanation.`);
 

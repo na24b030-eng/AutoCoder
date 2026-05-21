@@ -30,8 +30,6 @@ async function pushToGitHub(blueprint, dbCode, backendCode, frontendCode, readme
   }
   console.log('✅ GitHub repo created:', repo.full_name);
 
-  const backendUrl = `https://${repoName}-api.onrender.com`;
-
   const files = {
     'backend/server.js': backendCode,
     'backend/db/schema.js': dbCode,
@@ -48,7 +46,7 @@ async function pushToGitHub(blueprint, dbCode, backendCode, frontendCode, readme
       },
     }, null, 2),
     'backend/.gitignore': 'node_modules/\n.env\n*.db',
-    'frontend/src/App.jsx': frontendCode.replace(/http:\/\/localhost:3001/g, backendUrl),
+    'frontend/src/App.jsx': frontendCode,
     'frontend/src/main.jsx': `import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
@@ -136,7 +134,6 @@ async function deployToVercel(repoFullName, repoName) {
     'Content-Type': 'application/json',
   };
 
-  // Create project
   const projectRes = await fetch('https://api.vercel.com/v9/projects', {
     method: 'POST',
     headers,
@@ -157,7 +154,6 @@ async function deployToVercel(repoFullName, repoName) {
   }
   console.log('✅ Vercel project created:', project.name);
 
-  // Trigger deployment
   const deployRes = await fetch('https://api.vercel.com/v13/deployments', {
     method: 'POST',
     headers,
@@ -172,7 +168,7 @@ async function deployToVercel(repoFullName, repoName) {
   });
 
   const deploy = await deployRes.json();
-  console.log('🔍 Vercel deploy response:', JSON.stringify(deploy).slice(0, 300));
+  console.log('🔍 Vercel deploy response:', JSON.stringify(deploy).slice(0, 200));
 
   if (!deploy.id && !deploy.url) {
     throw new Error('Vercel deployment trigger failed: ' + JSON.stringify(deploy));
@@ -219,7 +215,6 @@ async function deployToRender(repoFullName, repoName) {
   });
 
   const service = await serviceRes.json();
-
   if (!service.service?.id) {
     throw new Error('Render deployment failed: ' + JSON.stringify(service));
   }

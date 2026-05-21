@@ -18,7 +18,6 @@ async function callOpenRouter(prompt) {
     });
     const data = await response.json();
     if (data.choices) return data.choices[0].message.content;
-
     const retryAfter = data.error?.metadata?.retry_after_seconds || 30;
     console.log(`⚠️ Frontend Agent rate limited (attempt ${i+1}/${maxRetries}), retrying in ${retryAfter}s...`);
     await new Promise(r => setTimeout(r, retryAfter * 1000));
@@ -26,7 +25,7 @@ async function callOpenRouter(prompt) {
   throw new Error('Frontend Agent: all retries exhausted');
 }
 
-async function runFrontendAgent(blueprint) {
+async function runFrontendAgent(blueprint, backendUrl) {
   const text = await callOpenRouter(`You are the Frontend Agent in an AutoCoder system.
 Blueprint: ${JSON.stringify(blueprint, null, 2)}
 
@@ -34,10 +33,16 @@ Write a complete React App.jsx with:
 - React Router for all pages: ${blueprint.pages?.join(', ')}
 - Global cart state using useContext + useReducer
 - All pages: Home, Product Catalog, Product Detail, Cart, Checkout, Order Confirmation
-- API calls using fetch() to http://localhost:3001/api
+- API calls using fetch() to ${backendUrl}/api
 - Beautiful Tailwind CSS styling appropriate for the project theme
 - Loading states, error states, empty states
 - Mobile responsive design
+
+CRITICAL RULES:
+- Use ONLY libraries already in package.json: react, react-dom, react-router-dom, axios
+- Do NOT import any external icon libraries or UI libraries not listed above
+- All components must be in this single App.jsx file
+- No TypeScript, only plain JSX
 
 Write ONE complete App.jsx file with all components included.
 Reply with ONLY JSX code, no markdown, no backticks, no explanation.`);
