@@ -30,6 +30,8 @@ async function pushToGitHub(blueprint, dbCode, backendCode, frontendCode, readme
   }
   console.log('✅ GitHub repo created:', repo.full_name);
 
+  const backendUrl = `https://${repoName}-api.onrender.com`;
+
   const files = {
     'backend/server.js': backendCode,
     'backend/db/schema.js': dbCode,
@@ -46,7 +48,7 @@ async function pushToGitHub(blueprint, dbCode, backendCode, frontendCode, readme
       },
     }, null, 2),
     'backend/.gitignore': 'node_modules/\n.env\n*.db',
-    'frontend/src/App.jsx': frontendCode,
+    'frontend/src/App.jsx': frontendCode.replace(/http:\/\/localhost:3001/g, backendUrl),
     'frontend/src/main.jsx': `import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
@@ -189,12 +191,12 @@ async function deployToRender(repoFullName, repoName) {
       ownerId: process.env.RENDER_OWNER_ID,
       repo: `https://github.com/${repoFullName}`,
       autoDeploy: 'yes',
-      rootDir: 'backend',        // ← MOVED to top level (was inside serviceDetails)
+      rootDir: 'backend',
+      branch: 'main',
       serviceDetails: {
         env: 'node',
         region: 'oregon',
         plan: 'free',
-        branch: 'main',
         envVars: [
           { key: 'NODE_ENV', value: 'production' },
           { key: 'PORT', value: '3001' },

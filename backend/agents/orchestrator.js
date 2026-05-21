@@ -1,17 +1,33 @@
 require('dotenv').config();
 
+async function callOpenRouter(prompt) {
+  const maxRetries = 5;
+  for (let i = 0; i < maxRetries; i++) {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://autocoder.vercel.app',
+        'X-Title': 'GenAI AutoCoder',
+      },
+      body: JSON.stringify({
+        model: 'openrouter/free',
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await response.json();
+    if (data.choices) return data.choices[0].message.content;
+
+    const retryAfter = data.error?.metadata?.retry_after_seconds || 30;
+    console.log(`⚠️ Orchestrator rate limited (attempt ${i+1}/${maxRetries}), retrying in ${retryAfter}s...`);
+    await new Promise(r => setTimeout(r, retryAfter * 1000));
+  }
+  throw new Error('Orchestrator: all retries exhausted');
+}
+
 async function runOrchestrator(userPrompt) {
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://autocoder.vercel.app',
-      'X-Title': 'GenAI AutoCoder',
-    },
-    body: JSON.stringify({
-      model: 'openrouter/free',
-      messages: [{ role: 'user', content: `You are the Orchestrator Agent in an AutoCoder system.
+  const text = await callOpenRouter(`You are the Orchestrator Agent in an AutoCoder system.
 The user wants to build: "${userPrompt}"
 
 Reply ONLY with valid JSON, no markdown, no backticks, no explanation:
@@ -25,13 +41,14 @@ Reply ONLY with valid JSON, no markdown, no backticks, no explanation:
     {"method": "POST", "path": "/api/orders", "desc": "create order"}
   ],
   "pages": ["Home", "Catalog", "Cart", "Checkout", "OrderConfirmation"]
-}` }]
-    })
-  });
-  const data = await response.json();
-  if (!data.choices) throw new Error('Orchestrator failed: ' + JSON.stringify(data));
-  const text = data.choices[0].message.content;
-  return JSON.parse(text.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim());
+}`);
+
+  const clean = text.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
+  try {
+    return JSON.parse(clean);
+  } catch(e) {
+    throw new Error('Orchestrator JSON parse failed. Raw: ' + clean.slice(0, 300));
+  }
 }
 
 module.exports = { runOrchestrator };
