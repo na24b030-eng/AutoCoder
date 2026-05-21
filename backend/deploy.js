@@ -136,6 +136,7 @@ async function deployToVercel(repoFullName, repoName) {
     'Content-Type': 'application/json',
   };
 
+  // Create project
   const projectRes = await fetch('https://api.vercel.com/v9/projects', {
     method: 'POST',
     headers,
@@ -156,18 +157,26 @@ async function deployToVercel(repoFullName, repoName) {
   }
   console.log('✅ Vercel project created:', project.name);
 
-  await fetch('https://api.vercel.com/v13/deployments', {
+  // Trigger deployment
+  const deployRes = await fetch('https://api.vercel.com/v13/deployments', {
     method: 'POST',
     headers,
     body: JSON.stringify({
       name: repoName,
       gitSource: {
         type: 'github',
-        repo: repoFullName,
+        repoId: project.link?.repoId,
         ref: 'main',
       },
     }),
   });
+
+  const deploy = await deployRes.json();
+  console.log('🔍 Vercel deploy response:', JSON.stringify(deploy).slice(0, 300));
+
+  if (!deploy.id && !deploy.url) {
+    throw new Error('Vercel deployment trigger failed: ' + JSON.stringify(deploy));
+  }
 
   const frontendUrl = `https://${repoName}.vercel.app`;
   console.log('✅ Vercel deployment triggered:', frontendUrl);
