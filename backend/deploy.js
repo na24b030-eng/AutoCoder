@@ -1,11 +1,13 @@
 require('dotenv').config();
 
 async function pushToGitHub(blueprint, dbCode, backendCode, frontendCode, readme) {
-  const repoName = blueprint.project_name
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '')
-    .slice(0, 40);
+// FIXED (unique every time):
+const timestamp = Date.now().toString().slice(-5);
+const repoName = (blueprint.project_name
+  .toLowerCase()
+  .replace(/\s+/g, '-')
+  .replace(/[^a-z0-9-]/g, '')
+  .slice(0, 34) + '-' + timestamp);
 
   const headers = {
     Authorization: `token ${process.env.GITHUB_TOKEN}`,
