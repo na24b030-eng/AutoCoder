@@ -25,28 +25,99 @@ async function callOpenRouter(prompt) {
   throw new Error('DB Agent: all retries exhausted');
 }
 
-async function runDBAgent(blueprint) {
-  const text = await callOpenRouter(`You are the Database Agent in an AutoCoder system.
+function validateDBCode(code) {
+  const errors = [];
+
+  if (!code.includes('new Database'))
+    errors.push('missing new Database()');
+  if (!code.includes('module.exports'))
+    errors.push('missing module.exports = db');
+  if (!code.includes('db.exec'))
+    errors.push('missing db.exec for CREATE TABLE');
+  if (!code.includes('CREATE TABLE'))
+    errors.push('missing CREATE TABLE statement');
+  if (/[^\x00-\x7F]/.test(code))
+    errors.push('contains non-ASCII characters');
+
+  // Mismatched braces
+  const opens = (code.match(/\{/g) || []).length;
+  const closes = (code.match(/\}/g) || []).length;
+  if (opens !== closes)
+    errors.push(`mismatched braces: ${opens} vs ${closes}`);
+
+  // Mismatched parentheses
+  const openParens = (code.match(/\(/g) || []).length;
+  const closeParens = (code.match(/\)/g) || []).length;
+  if (openParens !== closeParens)
+    errors.push(`mismatched parentheses: ${openParens} vs ${closeParens}`);
+
+  // Check for multiple statements in a single prepare()
+  // Looks for semicolons inside prepare('...') strings
+  const prepareMatches = code.match(/db\.prepare\(['"`][^'"`]*;[^'"`]*['"`]\)/g);
+  if (prepareMatches)
+    errors.push(`multiple SQL statements in db.prepare(): ${prepareMatches[0].slice(0, 60)}`);
+
+  // Forbidden packages
+  const forbidden = ['bcrypt', 'jsonwebtoken', 'mongoose', 'sequelize', 'axios'];
+  for (const pkg of forbidden) {
+    if (new RegExp(`require\\(['"]${pkg}['"]\\)`).test(code))
+      errors.push(`forbidden package: ${pkg}`);
+  }
+
+  return errors;
+}
+
+const PROMPT = (blueprint) => `You are the Database Agent in an AutoCoder system.
 Blueprint: ${JSON.stringify(blueprint, null, 2)}
 
 Write COMPLETE Node.js code for db/schema.js using better-sqlite3.
 
-EXACT RULES — follow precisely:
-1. Start with: const Database = require('better-sqlite3'); const path = require('path'); const db = new Database(path.join(__dirname, '..', 'app.db'));
-2. Use db.exec() with a template literal for ALL CREATE TABLE statements together
-3. Each INSERT must be: db.prepare('INSERT INTO table (col1, col2) VALUES (?, ?)').run(val1, val2);
-4. Every db.prepare() must contain EXACTLY ONE SQL statement — no semicolons inside
-5. End with: module.exports = db;
-6. Do NOT use bcrypt, jsonwebtoken, or any package other than better-sqlite3 and path
-7. Include 5 realistic seed rows for the main table
+EXACT RULES — follow ALL of these precisely:
+1. First line: const Database = require('better-sqlite3');
+2. Second line: const path = require('path');
+3. Third line: const db = new Database(path.join(__dirname, '..', 'app.db'));
+4. Use ONE db.exec() call with a template literal containing ALL CREATE TABLE statements
+5. Each INSERT must be a SEPARATE line: db.prepare('INSERT INTO table (col1, col2) VALUES (?, ?)').run(val1, val2);
+6. Every db.prepare() must contain EXACTLY ONE SQL statement — no semicolons inside the string
+7. Last line: module.exports = db;
+8. Do NOT use any package other than better-sqlite3 and path
+9. Do NOT use bcrypt, jsonwebtoken, or any other package
+10. Include 5 realistic seed rows for the main table
+11. Every opening { must have a matching closing }
+12. Every opening ( must have a matching closing )
 
-Reply with ONLY JavaScript code, no markdown, no backticks, no explanation.`);
+Reply with ONLY JavaScript code, no markdown, no backticks, no explanation.`;
 
-  return text
-    .replace(/```javascript\n?/g,'')
-    .replace(/```js\n?/g,'')
-    .replace(/```\n?/g,'')
-    .trim();
+async function runDBAgent(blueprint) {
+  const maxAttempts = 4;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    console.log(`🗄️ DB Agent: attempt ${attempt}/${maxAttempts}`);
+
+    const text = await callOpenRouter(PROMPT(blueprint));
+
+    const cleaned = text
+      .replace(/```javascript\n?/g, '')
+      .replace(/```js\n?/g, '')
+      .replace(/```\n?/g, '')
+      .trim();
+
+    const errors = validateDBCode(cleaned);
+
+    if (errors.length === 0) {
+      console.log(`✅ DB Agent: valid code on attempt ${attempt}`);
+      return cleaned;
+    }
+
+    console.warn(`⚠️ DB Agent attempt ${attempt} validation errors:`, errors);
+
+    if (attempt < maxAttempts) {
+      console.log(`🔄 Retrying in 5s...`);
+      await new Promise(r => setTimeout(r, 5000));
+    }
+  }
+
+  throw new Error(`DB Agent: failed after ${maxAttempts} attempts`);
 }
 
 module.exports = { runDBAgent };

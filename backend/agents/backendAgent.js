@@ -25,14 +25,78 @@ async function callOpenRouter(prompt) {
   throw new Error('Backend Agent: all retries exhausted');
 }
 
-async function runBackendAgent(blueprint) {
-  const text = await callOpenRouter(`You are the Backend Agent in an AutoCoder system.
+function autoFix(code) {
+  // Fix broken arrow function split across lines
+  let fixed = code.replace(
+    /app\.(get|post|put|delete|patch)\(\s*['"`]([^'"`]+)['"`]\s*,\s*\n\s*(async\s*\(req,\s*res\)\s*=>)/g,
+    "app.$1('$2', $3"
+  );
+
+  // Fix double quotes to single quotes in route paths for consistency
+  fixed = fixed.replace(
+    /app\.(get|post|put|delete|patch)\("([^"]+)"/g,
+    "app.$1('$2'"
+  );
+
+  return fixed;
+}
+
+function validateCode(code) {
+  const errors = [];
+
+  if (!code.includes('app.listen'))
+    errors.push('missing app.listen');
+  if (!code.includes('express'))
+    errors.push('missing express');
+  if (!code.includes("require('./db/schema')"))
+    errors.push("missing require('./db/schema')");
+  if (!code.includes('try') || !code.includes('catch'))
+    errors.push('missing try/catch');
+  if (/[^\x00-\x7F]/.test(code))
+    errors.push('contains non-ASCII characters');
+
+  // Mismatched braces
+  const opens = (code.match(/\{/g) || []).length;
+  const closes = (code.match(/\}/g) || []).length;
+  if (opens !== closes)
+    errors.push(`mismatched braces: ${opens} opening vs ${closes} closing`);
+
+  // Mismatched parentheses
+  const openParens = (code.match(/\(/g) || []).length;
+  const closeParens = (code.match(/\)/g) || []).length;
+  if (openParens !== closeParens)
+    errors.push(`mismatched parentheses: ${openParens} opening vs ${closeParens} closing`);
+
+  // Detect orphaned async arrow function on its own line
+  const lines = code.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (/^async\s*\(req,\s*res\)\s*=>/.test(line)) {
+      const prevLine = (lines[i - 1] || '').trim();
+      if (!/app\.(get|post|put|delete|patch|use)\(/.test(prevLine)) {
+        errors.push(`broken route handler at line ${i + 1}: "${line}"`);
+      }
+    }
+  }
+
+  // Forbidden packages
+  const forbidden = ['bcrypt', 'jsonwebtoken', 'jwt', 'passport', 'multer',
+    'nodemailer', 'mongoose', 'sequelize', 'axios', 'node-fetch'];
+  for (const pkg of forbidden) {
+    if (new RegExp(`require\\(['"]${pkg}['"]\\)`).test(code))
+      errors.push(`forbidden package: ${pkg}`);
+  }
+
+  return errors;
+}
+
+const PROMPT = (blueprint) => `You are the Backend Agent in an AutoCoder system.
 Blueprint: ${JSON.stringify(blueprint, null, 2)}
 
 Write a complete Express.js server.js file.
 
-EXACT RULES — follow precisely:
-1. Only require these packages: express, cors, path, better-sqlite3, dotenv — NO OTHER PACKAGES
+EXACT RULES — follow ALL of these precisely:
+1. Only require these packages: express, cors, path, better-sqlite3, dotenv — NO OTHER PACKAGES WHATSOEVER
 2. Import db with: const db = require('./db/schema');
 3. Every db.prepare() must contain EXACTLY ONE SQL statement — no semicolons inside prepare()
 4. Never use db.exec() in server.js
@@ -42,13 +106,52 @@ EXACT RULES — follow precisely:
 8. Do NOT implement any authentication, login, or registration routes
 9. Include GET, POST, PUT, DELETE routes for the main resource
 
-Reply with ONLY JavaScript code, no markdown, no backticks, no explanation.`);
+CRITICAL SYNTAX RULES:
+10. Route handlers MUST be written on ONE line like this:
+    app.get('/api/items', async (req, res) => {
+    NEVER split them like this:
+    app.get('/api/items',
+      async (req, res) => {
+11. The opening curly brace { must be on the SAME line as the arrow =>
+12. No line break between the route path and the async handler
+13. Every opening { must have a matching closing }
+14. Every opening ( must have a matching closing )
 
-  return text
-    .replace(/```javascript\n?/g,'')
-    .replace(/```js\n?/g,'')
-    .replace(/```\n?/g,'')
-    .trim();
+Reply with ONLY JavaScript code, no markdown, no backticks, no explanation.`;
+
+async function runBackendAgent(blueprint) {
+  const maxAttempts = 4;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    console.log(`🔧 Backend Agent: attempt ${attempt}/${maxAttempts}`);
+
+    const text = await callOpenRouter(PROMPT(blueprint));
+
+    let cleaned = text
+      .replace(/```javascript\n?/g, '')
+      .replace(/```js\n?/g, '')
+      .replace(/```\n?/g, '')
+      .trim();
+
+    // Auto-fix known patterns before validation
+    cleaned = autoFix(cleaned);
+
+    const errors = validateCode(cleaned);
+
+    if (errors.length === 0) {
+      console.log(`✅ Backend Agent: valid code on attempt ${attempt}`);
+      return cleaned;
+    }
+
+    console.warn(`⚠️ Backend Agent attempt ${attempt} validation errors:`, errors);
+
+    if (attempt < maxAttempts) {
+      console.log(`🔄 Retrying in 5s...`);
+      await new Promise(r => setTimeout(r, 5000));
+    }
+  }
+
+  throw new Error(`Backend Agent: failed after ${maxAttempts} attempts`);
 }
 
 module.exports = { runBackendAgent };
