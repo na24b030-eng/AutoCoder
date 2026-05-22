@@ -26,19 +26,33 @@ async function callOpenRouter(prompt) {
 }
 
 function autoFix(code) {
-  // Fix broken arrow function split across lines
-  let fixed = code.replace(
-    /app\.(get|post|put|delete|patch)\(\s*['"`]([^'"`]+)['"`]\s*,\s*\n\s*(async\s*\(req,\s*res\)\s*=>)/g,
-    "app.$1('$2', $3"
-  );
+  // Split into lines for processing
+  const lines = code.split('\n');
+  const result = [];
 
-  // Fix double quotes to single quotes in route paths for consistency
-  fixed = fixed.replace(
-    /app\.(get|post|put|delete|patch)\("([^"]+)"/g,
-    "app.$1('$2'"
-  );
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
 
-  return fixed;
+    // Detect: app.get('/path', <-- line ends with comma, next line is async handler
+    // Pattern: line ends with a comma after a route path string
+    const routeWithTrailingComma = /^(\s*app\.(get|post|put|delete|patch)\s*\([^)]*['"`]\s*),\s*$/.test(line);
+
+    if (routeWithTrailingComma && i + 1 < lines.length) {
+      const nextLine = lines[i + 1].trim();
+      // If next line starts with async (req or (req
+      if (/^async\s*\(req/.test(nextLine) || /^\(req/.test(nextLine)) {
+        // Merge the two lines
+        result.push(line.trimEnd().replace(/,\s*$/, '') + ', ' + nextLine);
+        i++; // skip next line since we merged it
+        continue;
+      }
+    }
+
+    result.push(line);
+  }
+
+  return result.join('\n');
 }
 
 function validateCode(code) {
