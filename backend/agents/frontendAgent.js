@@ -43,6 +43,22 @@ EXACT RULES — follow precisely:
 8. Keep all components in this single App.jsx file
 9. No TypeScript — plain JSX only
 10. Export default App as the root component wrapped in BrowserRouter
+CRITICAL RULES:
+- Only import from: react, react-dom, react-router-dom — NO OTHER IMPORTS
+- Do NOT import any icon libraries, UI libraries, or external packages
+- Use inline styles or plain Tailwind classes only
+- All API calls must use fetch('${backendUrl}/api/...')
+- Every JSX opening tag must have a matching closing tag with the EXACT same name
+- Do NOT include any login, register, or authentication pages
+- Use React Router v6 with BrowserRouter, Routes, Route
+- Keep all components in this single App.jsx file
+- No TypeScript — plain JSX only
+- Export default App as the root component wrapped in BrowserRouter
+- CRITICAL JSX SYNTAX: boolean props must use {true} or {false}, NEVER True or False
+- CRITICAL JSX SYNTAX: use exact={true} NOT exactly=True
+- CRITICAL JSX SYNTAX: all prop values must be strings in quotes or expressions in {curly braces}
+- CRITICAL: React Router v6 does NOT use render prop or component prop — use element={<Component />}
+- CRITICAL: React Router v6 syntax is <Route path="/" element={<Home />} /> with no children
 
 Reply with ONLY JSX code, no markdown, no backticks, no explanation.`);
 
