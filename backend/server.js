@@ -51,7 +51,7 @@ app.post('/api/generate', async (req, res) => {
     ).run(JSON.stringify(blueprint), dbCode, backendCode, frontendCode, readme,
       urls.frontendUrl, urls.backendUrl, urls.githubUrl, id);
 
-    res.json({ id, blueprint, dbCode, backendCode, frontendCode, readme, urls });
+    res.json({ id, status: 'running' });
 
   } catch (err) {
     console.error('GENERATION ERROR:', err);
