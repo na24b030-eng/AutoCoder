@@ -42,7 +42,11 @@ Reply ONLY with valid JSON, no markdown, no backticks, no explanation:
   "pages": ["Home", "List", "Detail"]
 }`);
 
+  if (!text) throw new Error('Orchestrator received empty response from AI');
+
   const clean = text.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
+  if (!clean) throw new Error('Orchestrator received blank response from AI');
+
   try {
     return JSON.parse(clean);
   } catch(e) {
