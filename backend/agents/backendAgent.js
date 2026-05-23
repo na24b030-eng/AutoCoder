@@ -26,25 +26,18 @@ async function callOpenRouter(prompt) {
 }
 
 function autoFix(code) {
-  // Split into lines for processing
   const lines = code.split('\n');
   const result = [];
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    const trimmed = line.trim();
-
-    // Detect: app.get('/path', <-- line ends with comma, next line is async handler
-    // Pattern: line ends with a comma after a route path string
     const routeWithTrailingComma = /^(\s*app\.(get|post|put|delete|patch)\s*\([^)]*['"`]\s*),\s*$/.test(line);
 
     if (routeWithTrailingComma && i + 1 < lines.length) {
       const nextLine = lines[i + 1].trim();
-      // If next line starts with async (req or (req
       if (/^async\s*\(req/.test(nextLine) || /^\(req/.test(nextLine)) {
-        // Merge the two lines
         result.push(line.trimEnd().replace(/,\s*$/, '') + ', ' + nextLine);
-        i++; // skip next line since we merged it
+        i++;
         continue;
       }
     }
@@ -69,19 +62,16 @@ function validateCode(code) {
   if (/[^\x00-\x7F]/.test(code))
     errors.push('contains non-ASCII characters');
 
-  // Mismatched braces
   const opens = (code.match(/\{/g) || []).length;
   const closes = (code.match(/\}/g) || []).length;
   if (opens !== closes)
     errors.push(`mismatched braces: ${opens} opening vs ${closes} closing`);
 
-  // Mismatched parentheses
   const openParens = (code.match(/\(/g) || []).length;
   const closeParens = (code.match(/\)/g) || []).length;
   if (openParens !== closeParens)
     errors.push(`mismatched parentheses: ${openParens} opening vs ${closeParens} closing`);
 
-  // Detect orphaned async arrow function on its own line
   const lines = code.split('\n');
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
@@ -93,7 +83,6 @@ function validateCode(code) {
     }
   }
 
-  // Forbidden packages
   const forbidden = ['bcrypt', 'jsonwebtoken', 'jwt', 'passport', 'multer',
     'nodemailer', 'mongoose', 'sequelize', 'axios', 'node-fetch'];
   for (const pkg of forbidden) {
@@ -147,7 +136,6 @@ async function runBackendAgent(blueprint) {
       .replace(/```\n?/g, '')
       .trim();
 
-    // Auto-fix known patterns before validation
     cleaned = autoFix(cleaned);
 
     const errors = validateCode(cleaned);
