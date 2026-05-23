@@ -59,26 +59,64 @@ API CALLS
 18. Every fetch() call must be inside a try/catch block
 19. Do NOT use axios — only use fetch()
 
-STYLING — CRITICAL, the app must look professional and beautiful:
-20. Use Tailwind CSS classes extensively on EVERY element
-21. Overall page background: bg-gray-50 min-h-screen
-22. The app must have a proper navbar with the project name and navigation links styled with bg-white shadow-sm px-6 py-4
-23. Use a consistent primary color scheme throughout (indigo or blue or emerald — pick one and stick to it)
-24. Hero/header section must have a gradient background: bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-20
-25. Cards must have: rounded-xl shadow-lg p-6 bg-white border border-gray-100 hover:shadow-xl transition-all
-26. Buttons must have: px-6 py-3 rounded-lg font-semibold transition-all with hover color change
-27. Use grid layouts: grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6
-28. Every page must have proper spacing: max-w-6xl mx-auto px-4 py-8
-29. Use proper typography: text-3xl font-bold for headings, text-gray-600 for subtext, text-sm for labels
-30. Add hover effects: hover:shadow-xl hover:scale-105 transition-all on cards and buttons
-31. Empty states must show a styled box with a message — not blank space
-32. Loading states must show a visible spinner using animate-spin border-4 border-indigo-600 border-t-transparent rounded-full w-8 h-8
-33. Use div placeholders with bg-gray-200 rounded-lg instead of <img> tags with external URLs
-34. Footer must have bg-gray-800 text-white py-8 with project name and description
+STYLING — the generated website must be STUNNING and MODERN:
+
+OVERALL DESIGN LANGUAGE
+20. The design must feel like a premium commercial website — think Airbnb, Stripe, or Linear
+21. Overall page: bg-gray-50 min-h-screen font-sans antialiased
+22. Use consistent spacing: every section has py-16 or py-20 padding
+
+NAVBAR
+23. Navbar: fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm px-8 py-4 flex items-center justify-between
+24. Navbar brand: text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent
+25. Navbar links: text-gray-600 hover:text-indigo-600 font-medium transition-colors text-sm
+
+HERO SECTION
+26. Hero must be BOLD: min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-800 relative overflow-hidden
+27. Add decorative blobs: absolute div with rounded-full bg-purple-500/30 blur-3xl w-96 h-96 -top-20 -left-20
+28. Hero heading: text-5xl md:text-7xl font-black text-white leading-tight tracking-tight
+29. Hero subtext: text-xl text-indigo-200 mt-6 max-w-2xl leading-relaxed
+30. Hero CTA button: px-8 py-4 bg-white text-indigo-900 rounded-full font-bold text-lg hover:bg-indigo-50 hover:scale-105 transition-all shadow-2xl mt-10
+
+CARDS
+31. Cards: bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 hover:-translate-y-1
+32. Card header strip: h-2 bg-gradient-to-r from-indigo-500 to-purple-500 at the top of every card
+33. Card content: p-6 space-y-3
+34. Card title: text-lg font-bold text-gray-900
+35. Card meta: text-sm text-gray-500 flex items-center gap-2
+
+BUTTONS
+36. Primary button: px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-indigo-200
+37. Secondary button: px-6 py-3 bg-white text-indigo-600 border-2 border-indigo-200 rounded-xl font-semibold hover:bg-indigo-50 hover:border-indigo-400 transition-all
+38. Danger button: px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition-all text-sm font-medium
+
+SECTIONS & LAYOUT
+39. Section headers: text-center mb-16 with text-4xl font-black text-gray-900 and colored underline: w-20 h-1 bg-gradient-to-r from-indigo-500 to-purple-500 mx-auto mt-4 rounded-full
+40. Grid: grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto px-6
+41. Alternating section backgrounds: white and bg-gradient-to-b from-indigo-50 to-white
+
+FORMS & INPUTS
+42. Input fields: w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-gray-50 text-gray-900 transition-all
+43. Form containers: bg-white rounded-2xl shadow-xl p-8 border border-gray-100 max-w-lg mx-auto
+44. Form labels: text-sm font-semibold text-gray-700 mb-2 block
+
+BADGES & TAGS
+45. Category/tag badges: inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700
+
+STATS & HIGHLIGHTS
+46. Include a stats/highlights row if relevant: flex gap-8 justify-center with each stat having text-3xl font-black text-indigo-600 and text-sm text-gray-500 label
+
+ANIMATIONS
+47. Add subtle entrance animations using Tailwind: use transition-all duration-300 on all interactive elements
+48. Skeleton loaders: animate-pulse bg-gray-200 rounded-xl h-48 when loading
+49. Spinner: animate-spin w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full mx-auto
+
+FOOTER
+50. Footer: bg-gray-900 text-white py-12 px-8 mt-20 with project name in gradient text, description in gray-400, and a thin border-t border-gray-800
 
 CRITICAL SYNTAX RULES — violating these causes build failure:
-35. Do NOT use any package not in rule 1 — no lucide-react, no heroicons, no @headlessui, no framer-motion
-36. Route handlers must be on ONE line: app.get('/path', async (req, res) => {
+51. Do NOT use any package not in rule 1 — no lucide-react, no heroicons, no @headlessui, no framer-motion
+52. Route handlers must be on ONE line: app.get('/path', async (req, res) => {
     NEVER split across lines like this:
     app.get('/path',
       async (req, res) => {
