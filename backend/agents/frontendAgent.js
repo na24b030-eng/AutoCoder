@@ -30,8 +30,6 @@ async function runFrontendAgent(blueprint, backendUrl) {
 Blueprint: ${JSON.stringify(blueprint, null, 2)}
 Backend API URL: ${backendUrl}
 
-Write a complete React App.jsx file.
-
 EXACT RULES — follow ALL precisely:
 
 IMPORTS & STRUCTURE
@@ -40,38 +38,52 @@ IMPORTS & STRUCTURE
 3. Keep all components in this single App.jsx file
 4. No TypeScript — plain JSX only
 5. Export default App as the root component wrapped in BrowserRouter
+6. Always import hooks: import { useState, useEffect } from 'react'
 
 ROUTING
-6. Use React Router v6 with BrowserRouter, Routes, Route
-7. React Router v6 uses element={<Component />} — NO render prop, NO component prop
-8. Route syntax: <Route path="/" element={<Home />} /> — no children pattern
-9. Do NOT include any login, register, or authentication pages
+7. Use React Router v6 with BrowserRouter, Routes, Route
+8. React Router v6 uses element={<Component />} — NO render prop, NO component prop
+9. Route syntax: <Route path="/" element={<Home />} /> — no children pattern
+10. Do NOT include any login, register, or authentication pages
 
 JSX SYNTAX
-10. Every JSX opening tag must have a matching closing tag with the EXACT same name
-11. Boolean props must use {true} or {false} — NEVER True or False
-12. Use exact={true} — NOT exactly=True
+11. Every JSX opening tag must have a matching closing tag with the EXACT same name
+12. Boolean props must use {true} or {false} — NEVER True or False
 13. All prop values must be strings in quotes or expressions in {curly braces}
+14. Every opening { must have a matching closing }
+15. Every opening ( must have a matching closing )
+16. The BrowserRouter must wrap everything: export default function App() { return <BrowserRouter>...</BrowserRouter> }
 
 API CALLS
-14. All API calls must use fetch('${backendUrl}/api/...') — no hardcoded URLs
+17. All API calls must use fetch('${backendUrl}/api/...') — no hardcoded localhost URLs
+18. Every fetch() call must be inside a try/catch block
+19. Do NOT use axios — only use fetch()
 
-STYLING — CRITICAL, the app must look professional:
-15. Use Tailwind CSS classes extensively on EVERY element — no external CSS imports except index.css; inline styles allowed as fallback
-16. Overall page background: bg-gray-50 min-h-screen
-17. The app must have a proper navbar with the project name and navigation links
-18. Use a consistent primary color scheme throughout (e.g. indigo, blue, or emerald)
-19. Hero/header section must have a gradient background (e.g. bg-gradient-to-r from-indigo-600 to-purple-600)
-20. Cards must have: rounded-xl shadow-lg p-6 bg-white border border-gray-100
-21. Buttons must have: px-6 py-3 rounded-lg font-semibold with hover effects (e.g. hover:bg-indigo-700 transition-all)
-22. Use grid layouts: grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6
-23. Every page must have proper spacing: max-w-6xl mx-auto px-4 py-8
-24. Use proper typography: text-3xl font-bold, text-gray-600, text-sm, etc.
-25. Add hover effects on interactive elements: hover:shadow-xl hover:scale-105 transition-all
-26. Empty states must show a styled message with an icon placeholder — not just blank space
-27. Loading states must show a spinner or skeleton — not just blank space
+STYLING — CRITICAL, the app must look professional and beautiful:
+20. Use Tailwind CSS classes extensively on EVERY element
+21. Overall page background: bg-gray-50 min-h-screen
+22. The app must have a proper navbar with the project name and navigation links styled with bg-white shadow-sm px-6 py-4
+23. Use a consistent primary color scheme throughout (indigo or blue or emerald — pick one and stick to it)
+24. Hero/header section must have a gradient background: bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-20
+25. Cards must have: rounded-xl shadow-lg p-6 bg-white border border-gray-100 hover:shadow-xl transition-all
+26. Buttons must have: px-6 py-3 rounded-lg font-semibold transition-all with hover color change
+27. Use grid layouts: grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6
+28. Every page must have proper spacing: max-w-6xl mx-auto px-4 py-8
+29. Use proper typography: text-3xl font-bold for headings, text-gray-600 for subtext, text-sm for labels
+30. Add hover effects: hover:shadow-xl hover:scale-105 transition-all on cards and buttons
+31. Empty states must show a styled box with a message — not blank space
+32. Loading states must show a visible spinner using animate-spin border-4 border-indigo-600 border-t-transparent rounded-full w-8 h-8
+33. Use div placeholders with bg-gray-200 rounded-lg instead of <img> tags with external URLs
+34. Footer must have bg-gray-800 text-white py-8 with project name and description
 
-Reply with ONLY JSX code — no markdown, no backticks, no explanation.
+CRITICAL SYNTAX RULES — violating these causes build failure:
+35. Do NOT use any package not in rule 1 — no lucide-react, no heroicons, no @headlessui, no framer-motion
+36. Route handlers must be on ONE line: app.get('/path', async (req, res) => {
+    NEVER split across lines like this:
+    app.get('/path',
+      async (req, res) => {
+
+Reply with ONLY JSX code — no markdown, no backticks, no explanation.`);
 
   return text
     .replace(/```jsx\n?/g,'')
