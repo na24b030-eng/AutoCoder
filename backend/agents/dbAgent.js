@@ -3,24 +3,29 @@ require('dotenv').config();
 async function callOpenRouter(prompt) {
   const maxRetries = 5;
   for (let i = 0; i < maxRetries; i++) {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://autocoder.vercel.app',
-        'X-Title': 'GenAI AutoCoder',
-      },
-      body: JSON.stringify({
-        model: 'openrouter/free',
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-    const data = await response.json();
-    if (data.choices) return data.choices[0].message.content;
-    const retryAfter = data.error?.metadata?.retry_after_seconds || 30;
-    console.log(`⚠️ DB Agent rate limited (attempt ${i+1}/${maxRetries}), retrying in ${retryAfter}s...`);
-    await new Promise(r => setTimeout(r, retryAfter * 1000));
+    try {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://autocoder.vercel.app',
+          'X-Title': 'GenAI AutoCoder',
+        },
+        body: JSON.stringify({
+          model: 'openrouter/free',
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+      const data = await response.json();
+      if (data.choices) return data.choices[0].message.content;
+      const retryAfter = data.error?.metadata?.retry_after_seconds || 30;
+      console.log(`⚠️ DB Agent rate limited (attempt ${i+1}/${maxRetries}), retrying in ${retryAfter}s...`);
+      await new Promise(r => setTimeout(r, retryAfter * 1000));
+    } catch (err) {
+      console.log(`⚠️ DB Agent network error (attempt ${i+1}/${maxRetries}): ${err.message}, retrying in 10s...`);
+      await new Promise(r => setTimeout(r, 10000));
+    }
   }
   throw new Error('DB Agent: all retries exhausted');
 }
@@ -37,29 +42,24 @@ function validateDBCode(code) {
   if (!code.includes('CREATE TABLE'))
     errors.push('missing CREATE TABLE statement');
 
-  // Detect truncated output — last non-empty line must be module.exports = db
   const lastLine = code.split('\n').map(l => l.trim()).filter(Boolean).pop();
   if (lastLine !== 'module.exports = db;')
     errors.push(`file appears truncated — last line is: "${lastLine}"`);
 
-  // Mismatched braces
   const opens = (code.match(/\{/g) || []).length;
   const closes = (code.match(/\}/g) || []).length;
   if (opens !== closes)
     errors.push(`mismatched braces: ${opens} vs ${closes}`);
 
-  // Mismatched parentheses
   const openParens = (code.match(/\(/g) || []).length;
   const closeParens = (code.match(/\)/g) || []).length;
   if (openParens !== closeParens)
     errors.push(`mismatched parentheses: ${openParens} vs ${closeParens}`);
 
-  // Multiple statements in prepare()
   const prepareMatches = code.match(/db\.prepare\(['"`][^'"`]*;[^'"`]*['"`]\)/g);
   if (prepareMatches)
     errors.push(`multiple SQL in db.prepare(): ${prepareMatches[0].slice(0, 60)}`);
 
-  // Forbidden packages
   const forbidden = ['bcrypt', 'jsonwebtoken', 'mongoose', 'sequelize', 'axios'];
   for (const pkg of forbidden) {
     if (new RegExp(`require\\(['"]${pkg}['"]\\)`).test(code))
@@ -81,7 +81,7 @@ EXACT RULES — follow ALL of these precisely:
 4. Use ONE db.exec() call with a template literal containing ALL CREATE TABLE statements
 5. Each INSERT must be a SEPARATE line: db.prepare('INSERT INTO table (col1, col2) VALUES (?, ?)').run(val1, val2);
 6. Every db.prepare() must contain EXACTLY ONE SQL statement — no semicolons inside the string
-7. Last line: module.exports = db;
+7. Last line must be exactly: module.exports = db;
 8. Do NOT use any package other than better-sqlite3 and path
 9. Do NOT use bcrypt, jsonwebtoken, or any other package
 10. Include 5 realistic seed rows for the main table
