@@ -1,28 +1,45 @@
 require('dotenv').config();
 
+const FREE_MODELS = [
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'deepseek/deepseek-chat-v3-0324:free',
+  'google/gemma-3-27b-it:free',
+  'mistralai/mistral-7b-instruct:free',
+  'qwen/qwen3-235b-a22b:free',
+];
+
 async function callOpenRouter(prompt) {
   const maxRetries = 5;
   for (let i = 0; i < maxRetries; i++) {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://autocoder.vercel.app',
-        'X-Title': 'GenAI AutoCoder',
-      },
-      body: JSON.stringify({
-        model: 'openrouter/free',
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-    const data = await response.json();
-    if (data.choices) return data.choices[0].message.content;
-    const retryAfter = data.error?.metadata?.retry_after_seconds || 30;
-    console.log(`⚠️ Orchestrator rate limited (attempt ${i+1}/${maxRetries}), retrying in ${retryAfter}s...`);
-    await new Promise(r => setTimeout(r, retryAfter * 1000));
+    const model = FREE_MODELS[i % FREE_MODELS.length];
+    try {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://autocoder.vercel.app',
+          'X-Title': 'GenAI AutoCoder',
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+      const data = await response.json();
+      if (data.choices?.[0]?.message?.content) {
+        console.log(`✅ Orchestrator got response from ${model}`);
+        return data.choices[0].message.content;
+      }
+      const retryAfter = data.error?.metadata?.retry_after_seconds || 15;
+      console.log(`⚠️ Orchestrator: ${model} failed (attempt ${i+1}/${maxRetries}), retrying in ${retryAfter}s...`);
+      await new Promise(r => setTimeout(r, retryAfter * 1000));
+    } catch (err) {
+      console.log(`⚠️ Orchestrator network error (attempt ${i+1}/${maxRetries}): ${err.message}, retrying in 10s...`);
+      await new Promise(r => setTimeout(r, 10000));
+    }
   }
-  throw new Error('Orchestrator: all retries exhausted');
+  throw new Error('Orchestrator: all models failed');
 }
 
 async function runOrchestrator(userPrompt) {
@@ -43,10 +60,8 @@ Reply ONLY with valid JSON, no markdown, no backticks, no explanation:
 }`);
 
   if (!text) throw new Error('Orchestrator received empty response from AI');
-
   const clean = text.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
   if (!clean) throw new Error('Orchestrator received blank response from AI');
-
   try {
     return JSON.parse(clean);
   } catch(e) {
