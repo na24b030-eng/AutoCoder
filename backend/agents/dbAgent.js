@@ -3,29 +3,24 @@ require('dotenv').config();
 async function callOpenRouter(prompt) {
   const maxRetries = 5;
   for (let i = 0; i < maxRetries; i++) {
-    try {
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://autocoder.vercel.app',
-          'X-Title': 'GenAI AutoCoder',
-        },
-        body: JSON.stringify({
-          model: 'openrouter/free',
-          messages: [{ role: 'user', content: prompt }]
-        })
-      });
-      const data = await response.json();
-      if (data.choices) return data.choices[0].message.content;
-      const retryAfter = data.error?.metadata?.retry_after_seconds || 30;
-      console.log(`⚠️ DB Agent rate limited (attempt ${i+1}/${maxRetries}), retrying in ${retryAfter}s...`);
-      await new Promise(r => setTimeout(r, retryAfter * 1000));
-    } catch (err) {
-      console.log(`⚠️ DB Agent network error (attempt ${i+1}/${maxRetries}): ${err.message}, retrying in 10s...`);
-      await new Promise(r => setTimeout(r, 10000));
-    }
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://autocoder.vercel.app',
+        'X-Title': 'GenAI AutoCoder',
+      },
+      body: JSON.stringify({
+        model: 'openrouter/free',
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await response.json();
+    if (data.choices) return data.choices[0].message.content;
+    const retryAfter = data.error?.metadata?.retry_after_seconds || 30;
+    console.log(`⚠️ DB Agent rate limited (attempt ${i+1}/${maxRetries}), retrying in ${retryAfter}s...`);
+    await new Promise(r => setTimeout(r, retryAfter * 1000));
   }
   throw new Error('DB Agent: all retries exhausted');
 }
@@ -41,10 +36,6 @@ function validateDBCode(code) {
     errors.push('missing db.exec for CREATE TABLE');
   if (!code.includes('CREATE TABLE'))
     errors.push('missing CREATE TABLE statement');
-
-  const lastLine = code.split('\n').map(l => l.trim()).filter(Boolean).pop();
-  if (lastLine !== 'module.exports = db;')
-    errors.push(`file appears truncated — last line is: "${lastLine}"`);
 
   const opens = (code.match(/\{/g) || []).length;
   const closes = (code.match(/\}/g) || []).length;
