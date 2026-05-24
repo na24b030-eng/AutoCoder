@@ -36,8 +36,11 @@ function validateDBCode(code) {
     errors.push('missing db.exec for CREATE TABLE');
   if (!code.includes('CREATE TABLE'))
     errors.push('missing CREATE TABLE statement');
-  if (/[^\x00-\x7F]/.test(code))
-    errors.push('contains non-ASCII characters');
+
+  // Detect truncated output — last non-empty line must be module.exports = db
+  const lastLine = code.split('\n').map(l => l.trim()).filter(Boolean).pop();
+  if (lastLine !== 'module.exports = db;')
+    errors.push(`file appears truncated — last line is: "${lastLine}"`);
 
   // Mismatched braces
   const opens = (code.match(/\{/g) || []).length;
@@ -51,11 +54,10 @@ function validateDBCode(code) {
   if (openParens !== closeParens)
     errors.push(`mismatched parentheses: ${openParens} vs ${closeParens}`);
 
-  // Check for multiple statements in a single prepare()
-  // Looks for semicolons inside prepare('...') strings
+  // Multiple statements in prepare()
   const prepareMatches = code.match(/db\.prepare\(['"`][^'"`]*;[^'"`]*['"`]\)/g);
   if (prepareMatches)
-    errors.push(`multiple SQL statements in db.prepare(): ${prepareMatches[0].slice(0, 60)}`);
+    errors.push(`multiple SQL in db.prepare(): ${prepareMatches[0].slice(0, 60)}`);
 
   // Forbidden packages
   const forbidden = ['bcrypt', 'jsonwebtoken', 'mongoose', 'sequelize', 'axios'];
