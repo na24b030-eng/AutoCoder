@@ -1,10 +1,10 @@
 require('dotenv').config();
 
 const FREE_MODELS = [
-  'meta-llama/llama-3.3-70b-instruct:free',
+  'openai/gpt-oss-20b:free',
+  'openai/gpt-oss-120b:free',
   'deepseek/deepseek-v4-flash:free',
   'google/gemma-4-31b-it:free',
-  'openai/gpt-oss-20b:free',
   'nvidia/nemotron-3-super-120b-a12b:free',
 ];
 
