@@ -2,10 +2,10 @@ require('dotenv').config();
 
 const FREE_MODELS = [
   'meta-llama/llama-3.3-70b-instruct:free',
-  'deepseek/deepseek-chat-v3-0324:free',
-  'google/gemma-3-27b-it:free',
-  'mistralai/mistral-7b-instruct:free',
-  'qwen/qwen3-235b-a22b:free',
+  'deepseek/deepseek-v4-flash:free',
+  'google/gemma-4-31b-it:free',
+  'openai/gpt-oss-20b:free',
+  'nvidia/nemotron-3-super-120b-a12b:free',
 ];
 
 async function callOpenRouter(prompt) {
