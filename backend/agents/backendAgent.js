@@ -1,19 +1,38 @@
 require('dotenv').config();
 
-const FREE_MODELS = [
-  'google/gemma-4-31b-it:free',
-  'deepseek/deepseek-v4-flash:free',
-  'openai/gpt-oss-20b:free',
-  'nvidia/nemotron-3-super-120b-a12b:free',
-  'openai/gpt-oss-120b:free',
-];
-
-async function callOpenRouter(prompt) {
+async function callAI(prompt) {
   const maxRetries = 5;
   for (let i = 0; i < maxRetries; i++) {
-    const model = FREE_MODELS[i % FREE_MODELS.length];
     try {
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      if (process.env.GROQ_API_KEY) {
+        const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'llama-3.3-70b-versatile',
+            messages: [{ role: 'user', content: prompt }],
+            max_tokens: 4096,
+          })
+        });
+        const groqData = await groqRes.json();
+        if (groqData.choices?.[0]?.message?.content) {
+          console.log('✅ Backend Agent using Groq');
+          return groqData.choices[0].message.content;
+        }
+        const retryAfter = groqData.error?.message?.includes('rate') ? 60 : 5;
+        console.log(`⚠️ Groq failed (attempt ${i+1}): ${groqData.error?.message || 'unknown'}, retrying in ${retryAfter}s...`);
+        await new Promise(r => setTimeout(r, retryAfter * 1000));
+        continue;
+      }
+    } catch (err) {
+      console.log(`⚠️ Groq network error: ${err.message}`);
+    }
+
+    try {
+      const orRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
@@ -22,24 +41,24 @@ async function callOpenRouter(prompt) {
           'X-Title': 'GenAI AutoCoder',
         },
         body: JSON.stringify({
-          model,
+          model: 'openrouter/free',
           messages: [{ role: 'user', content: prompt }]
         })
       });
-      const data = await response.json();
-      if (data.choices?.[0]?.message?.content) {
-        console.log(`✅ Backend Agent got response from ${model}`);
-        return data.choices[0].message.content;
+      const orData = await orRes.json();
+      if (orData.choices?.[0]?.message?.content) {
+        console.log('✅ Backend Agent using OpenRouter fallback');
+        return orData.choices[0].message.content;
       }
-      const retryAfter = data.error?.metadata?.retry_after_seconds || 15;
-      console.log(`⚠️ Backend Agent: ${model} failed (attempt ${i+1}/${maxRetries}), retrying in ${retryAfter}s...`);
+      const retryAfter = orData.error?.metadata?.retry_after_seconds || 30;
+      console.log(`⚠️ OpenRouter also failed, retrying in ${retryAfter}s...`);
       await new Promise(r => setTimeout(r, retryAfter * 1000));
     } catch (err) {
-      console.log(`⚠️ Backend Agent network error (attempt ${i+1}/${maxRetries}): ${err.message}, retrying in 10s...`);
+      console.log(`⚠️ OpenRouter network error: ${err.message}, retrying in 10s...`);
       await new Promise(r => setTimeout(r, 10000));
     }
   }
-  throw new Error('Backend Agent: all models failed');
+  throw new Error('Backend Agent: all retries exhausted');
 }
 
 function autoFix(code) {
@@ -126,7 +145,7 @@ async function runBackendAgent(blueprint) {
   const maxAttempts = 4;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     console.log(`🔧 Backend Agent: attempt ${attempt}/${maxAttempts}`);
-    const text = await callOpenRouter(PROMPT(blueprint));
+    const text = await callAI(PROMPT(blueprint));
     let cleaned = text
       .replace(/```javascript\n?/g, '')
       .replace(/```js\n?/g, '')
