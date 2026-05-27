@@ -1,60 +1,28 @@
 require('dotenv').config();
 
 async function callAI(prompt) {
-  const maxRetries = 5;
-  for (let i = 0; i < maxRetries; i++) {
+  for (let i = 0; i < 5; i++) {
     try {
-      if (process.env.GROQ_API_KEY) {
-        const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
-            messages: [{ role: 'user', content: prompt }],
-            max_tokens: 4096,
-          })
-        });
-        const groqData = await groqRes.json();
-        if (groqData.choices?.[0]?.message?.content) {
-          console.log('✅ Backend Agent using Groq');
-          return groqData.choices[0].message.content;
-        }
-        const retryAfter = groqData.error?.message?.includes('rate') ? 60 : 5;
-        console.log(`⚠️ Groq failed (attempt ${i+1}): ${groqData.error?.message || 'unknown'}, retrying in ${retryAfter}s...`);
-        await new Promise(r => setTimeout(r, retryAfter * 1000));
-        continue;
-      }
-    } catch (err) {
-      console.log(`⚠️ Groq network error: ${err.message}`);
-    }
-
-    try {
-      const orRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://autocoder.vercel.app',
-          'X-Title': 'GenAI AutoCoder',
         },
         body: JSON.stringify({
-          model: 'openrouter/free',
-          messages: [{ role: 'user', content: prompt }]
+          model: 'llama-3.1-70b-versatile',
+          messages: [{ role: 'user', content: prompt }],
+          max_tokens: 4096,
         })
       });
-      const orData = await orRes.json();
-      if (orData.choices?.[0]?.message?.content) {
-        console.log('✅ Backend Agent using OpenRouter fallback');
-        return orData.choices[0].message.content;
-      }
-      const retryAfter = orData.error?.metadata?.retry_after_seconds || 30;
-      console.log(`⚠️ OpenRouter also failed, retrying in ${retryAfter}s...`);
-      await new Promise(r => setTimeout(r, retryAfter * 1000));
+      const data = await res.json();
+      if (data.choices?.[0]?.message?.content) return data.choices[0].message.content;
+      const match = data.error?.message?.match(/try again in ([0-9.]+)s/);
+      const wait = match ? Math.ceil(parseFloat(match[1])) + 2 : 30;
+      console.log(`⚠️ Backend Agent rate limited, waiting ${wait}s...`);
+      await new Promise(r => setTimeout(r, wait * 1000));
     } catch (err) {
-      console.log(`⚠️ OpenRouter network error: ${err.message}, retrying in 10s...`);
+      console.log(`⚠️ Backend Agent error: ${err.message}, retrying in 10s...`);
       await new Promise(r => setTimeout(r, 10000));
     }
   }
@@ -82,24 +50,18 @@ function autoFix(code) {
 
 function validateCode(code) {
   const errors = [];
-  if (!code.includes('app.listen'))
-    errors.push('missing app.listen');
-  if (!code.includes('express'))
-    errors.push('missing express');
-  if (!code.includes("require('./db/schema')"))
-    errors.push("missing require('./db/schema')");
-  if (!code.includes('try') || !code.includes('catch'))
-    errors.push('missing try/catch');
+  if (!code.includes('app.listen')) errors.push('missing app.listen');
+  if (!code.includes('express')) errors.push('missing express');
+  if (!code.includes("require('./db/schema')")) errors.push("missing require('./db/schema')");
+  if (!code.includes('try') || !code.includes('catch')) errors.push('missing try/catch');
 
   const opens = (code.match(/\{/g) || []).length;
   const closes = (code.match(/\}/g) || []).length;
-  if (opens !== closes)
-    errors.push(`mismatched braces: ${opens} vs ${closes}`);
+  if (opens !== closes) errors.push(`mismatched braces: ${opens} vs ${closes}`);
 
   const openParens = (code.match(/\(/g) || []).length;
   const closeParens = (code.match(/\)/g) || []).length;
-  if (openParens !== closeParens)
-    errors.push(`mismatched parentheses: ${openParens} vs ${closeParens}`);
+  if (openParens !== closeParens) errors.push(`mismatched parentheses: ${openParens} vs ${closeParens}`);
 
   const lines = code.split('\n');
   for (let i = 0; i < lines.length; i++) {
@@ -111,8 +73,7 @@ function validateCode(code) {
     }
   }
 
-  const forbidden = ['bcrypt', 'jsonwebtoken', 'jwt', 'passport', 'multer',
-    'nodemailer', 'mongoose', 'sequelize', 'axios', 'node-fetch'];
+  const forbidden = ['bcrypt', 'jsonwebtoken', 'jwt', 'passport', 'multer', 'nodemailer', 'mongoose', 'sequelize', 'axios', 'node-fetch'];
   for (const pkg of forbidden) {
     if (new RegExp(`require\\(['"]${pkg}['"]\\)`).test(code))
       errors.push(`forbidden package: ${pkg}`);
@@ -136,8 +97,7 @@ EXACT RULES:
 8. No authentication or login routes
 9. Include GET, POST, PUT, DELETE routes for the main resource
 10. Route handlers on ONE line: app.get('/api/items', async (req, res) => {
-11. Every opening { must have a matching closing }
-12. Every opening ( must have a matching closing )
+11. Every { must have matching } and every ( must have matching )
 
 Reply with ONLY JavaScript code, no markdown, no backticks, no explanation.`;
 
@@ -146,11 +106,7 @@ async function runBackendAgent(blueprint) {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     console.log(`🔧 Backend Agent: attempt ${attempt}/${maxAttempts}`);
     const text = await callAI(PROMPT(blueprint));
-    let cleaned = text
-      .replace(/```javascript\n?/g, '')
-      .replace(/```js\n?/g, '')
-      .replace(/```\n?/g, '')
-      .trim();
+    let cleaned = text.replace(/```javascript\n?/g,'').replace(/```js\n?/g,'').replace(/```\n?/g,'').trim();
     cleaned = autoFix(cleaned);
     const errors = validateCode(cleaned);
     if (errors.length === 0) {

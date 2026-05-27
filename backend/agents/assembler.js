@@ -1,60 +1,28 @@
 require('dotenv').config();
 
 async function callAI(prompt) {
-  const maxRetries = 5;
-  for (let i = 0; i < maxRetries; i++) {
+  for (let i = 0; i < 5; i++) {
     try {
-      if (process.env.GROQ_API_KEY) {
-        const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
-            messages: [{ role: 'user', content: prompt }],
-            max_tokens: 4096,
-          })
-        });
-        const groqData = await groqRes.json();
-        if (groqData.choices?.[0]?.message?.content) {
-          console.log('✅ Assembler using Groq');
-          return groqData.choices[0].message.content;
-        }
-        const retryAfter = groqData.error?.message?.includes('rate') ? 60 : 5;
-        console.log(`⚠️ Groq failed (attempt ${i+1}): ${groqData.error?.message || 'unknown'}, retrying in ${retryAfter}s...`);
-        await new Promise(r => setTimeout(r, retryAfter * 1000));
-        continue;
-      }
-    } catch (err) {
-      console.log(`⚠️ Groq network error: ${err.message}`);
-    }
-
-    try {
-      const orRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://autocoder.vercel.app',
-          'X-Title': 'GenAI AutoCoder',
         },
         body: JSON.stringify({
-          model: 'openrouter/free',
-          messages: [{ role: 'user', content: prompt }]
+          model: 'gemma2-9b-it',
+          messages: [{ role: 'user', content: prompt }],
+          max_tokens: 2048,
         })
       });
-      const orData = await orRes.json();
-      if (orData.choices?.[0]?.message?.content) {
-        console.log('✅ Assembler using OpenRouter fallback');
-        return orData.choices[0].message.content;
-      }
-      const retryAfter = orData.error?.metadata?.retry_after_seconds || 30;
-      console.log(`⚠️ OpenRouter also failed, retrying in ${retryAfter}s...`);
-      await new Promise(r => setTimeout(r, retryAfter * 1000));
+      const data = await res.json();
+      if (data.choices?.[0]?.message?.content) return data.choices[0].message.content;
+      const match = data.error?.message?.match(/try again in ([0-9.]+)s/);
+      const wait = match ? Math.ceil(parseFloat(match[1])) + 2 : 30;
+      console.log(`⚠️ Assembler rate limited, waiting ${wait}s...`);
+      await new Promise(r => setTimeout(r, wait * 1000));
     } catch (err) {
-      console.log(`⚠️ OpenRouter network error: ${err.message}, retrying in 10s...`);
+      console.log(`⚠️ Assembler error: ${err.message}, retrying in 10s...`);
       await new Promise(r => setTimeout(r, 10000));
     }
   }
