@@ -10,7 +10,7 @@ async function callAI(prompt) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
+          model: 'meta-llama/llama-4-scout-17b-16e-instruct',
           messages: [{ role: 'user', content: prompt }],
           max_tokens: 8192,
         })
@@ -18,7 +18,7 @@ async function callAI(prompt) {
       const data = await res.json();
       if (data.choices?.[0]?.message?.content) return data.choices[0].message.content;
       const match = data.error?.message?.match(/try again in ([0-9.]+)s/);
-      const wait = match ? Math.ceil(parseFloat(match[1])) + 2 : 30;
+      const wait = match ? Math.ceil(parseFloat(match[1])) + 2 : 15;
       console.log(`⚠️ Frontend Agent rate limited, waiting ${wait}s...`);
       await new Promise(r => setTimeout(r, wait * 1000));
     } catch (err) {
@@ -36,10 +36,9 @@ function validateFrontendCode(code) {
   if (!code.includes('useState') && !code.includes('useEffect')) errors.push('missing React hooks');
 
   const forbidden = ['lucide-react', '@heroicons', 'framer-motion', '@headlessui', 'react-icons', 'styled-components', '@mui', 'antd'];
-  for (const pkg of forbidden) {
+  for (const pkg of forbidden)
     if (code.includes(`from '${pkg}'`) || code.includes(`from "${pkg}"`))
       errors.push(`forbidden import: ${pkg}`);
-  }
 
   if (/=True[\s,>]/.test(code) || /=False[\s,>]/.test(code))
     errors.push('Python boolean syntax detected');
@@ -79,14 +78,14 @@ JSX SYNTAX
 10. Boolean props: {true} or {false} — NEVER True or False
 11. Every { must have a matching }
 12. Every ( must have a matching )
-13. Use only plain ASCII characters — no smart quotes or Unicode symbols
+13. Use only plain ASCII characters
 
 API
-14. All fetch calls use: fetch('${backendUrl}/api/...')
+14. All fetch calls: fetch('${backendUrl}/api/...')
 15. Every fetch() inside try/catch
 16. No axios — only fetch()
 
-STYLING — make this website STUNNING and MODERN:
+STYLING — STUNNING and MODERN:
 17. Overall: className="bg-gray-50 min-h-screen font-sans antialiased"
 18. Navbar: className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm"
 19. Nav inner: className="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between"
@@ -103,26 +102,26 @@ STYLING — make this website STUNNING and MODERN:
 30. Card title: className="text-lg font-bold text-gray-900 group-hover:text-indigo-600 transition-colors"
 31. Primary btn: className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 hover:scale-105 active:scale-95 transition-all shadow-lg"
 32. Secondary btn: className="px-6 py-3 bg-white text-indigo-600 border-2 border-indigo-100 rounded-xl font-semibold hover:bg-indigo-50 transition-all"
-33. Danger btn: className="px-4 py-2 bg-red-50 text-red-600 border border-red-100 rounded-lg hover:bg-red-100 transition-all text-sm font-medium"
-34. Page container: className="max-w-7xl mx-auto px-6 py-12 pt-28"
+33. Danger btn: className="px-4 py-2 bg-red-50 text-red-600 border border-red-100 rounded-lg hover:bg-red-100 transition-all text-sm"
+34. Page: className="max-w-7xl mx-auto px-6 py-12 pt-28"
 35. Section title: className="text-4xl font-black text-gray-900 mb-3"
 36. Underline: className="w-16 h-1.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full mb-12"
 37. Grid: className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
 38. Input: className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
-39. Form wrap: className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 max-w-2xl mx-auto"
+39. Form: className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 max-w-2xl mx-auto"
 40. Label: className="block text-sm font-semibold text-gray-700 mb-2"
-41. Spinner: className="flex flex-col items-center justify-center py-24" with inner div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"
+41. Spinner: className="flex flex-col items-center justify-center py-24" with inner className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"
 42. Badge: className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700"
-43. Toast success: className="fixed bottom-6 right-6 bg-green-500 text-white px-6 py-3 rounded-xl shadow-lg font-semibold z-50"
-44. Toast error: className="fixed bottom-6 right-6 bg-red-500 text-white px-6 py-3 rounded-xl shadow-lg font-semibold z-50"
+43. Toast ok: className="fixed bottom-6 right-6 bg-green-500 text-white px-6 py-3 rounded-xl shadow-lg font-semibold z-50"
+44. Toast err: className="fixed bottom-6 right-6 bg-red-500 text-white px-6 py-3 rounded-xl shadow-lg font-semibold z-50"
 45. Footer: className="bg-gray-900 text-white mt-20 py-12 px-8 border-t border-gray-800"
 
 INTERACTIVITY
 46. useState to toggle add/edit forms
-47. Search/filter using useState on list pages
-48. Toast messages after create/delete using useState + setTimeout to auto-dismiss
-49. useNavigate for card click navigation
-50. Optimistic UI updates on item creation
+47. Search/filter using useState
+48. Toast messages after create/delete, auto-dismiss after 3s
+49. useNavigate for card clicks
+50. Optimistic UI on item creation
 
 Reply with ONLY JSX code — no markdown, no backticks, no explanation.`);
 
@@ -143,9 +142,4 @@ Reply with ONLY JSX code — no markdown, no backticks, no explanation.`);
       return cleaned;
     }
     console.warn(`⚠️ Frontend Agent attempt ${attempt} errors:`, errors);
-    if (attempt < maxAttempts) await new Promise(r => setTimeout(r, 5000));
-  }
-  throw new Error('Frontend Agent: failed after 3 attempts');
-}
-
-module.exports = { runFrontendAgent };
+    if

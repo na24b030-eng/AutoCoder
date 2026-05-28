@@ -12,13 +12,13 @@ async function callAI(prompt) {
         body: JSON.stringify({
           model: 'llama-3.1-8b-instant',
           messages: [{ role: 'user', content: prompt }],
-          max_tokens: 2048,
+          max_tokens: 1024,
         })
       });
       const data = await res.json();
       if (data.choices?.[0]?.message?.content) return data.choices[0].message.content;
       const match = data.error?.message?.match(/try again in ([0-9.]+)s/);
-      const wait = match ? Math.ceil(parseFloat(match[1])) + 2 : 30;
+      const wait = match ? Math.ceil(parseFloat(match[1])) + 2 : 15;
       console.log(`⚠️ Orchestrator rate limited, waiting ${wait}s...`);
       await new Promise(r => setTimeout(r, wait * 1000));
     } catch (err) {

@@ -26,6 +26,8 @@ app.post('/api/generate', async (req, res) => {
     'INSERT INTO generations (prompt, status) VALUES (?, ?)'
   ).run(prompt, 'running');
 
+  res.json({ id, status: 'running' });
+
   try {
     const blueprint = await runOrchestrator(prompt);
 
@@ -33,16 +35,17 @@ app.post('/api/generate', async (req, res) => {
       .toLowerCase()
       .replace(/\s+/g, '-')
       .replace(/[^a-z0-9-]/g, '')
-      .slice(0, 40);
+      .slice(0, 34) + '-' + Date.now().toString().slice(-5);
+
     const backendUrl = `https://${repoName}-api.onrender.com`;
 
-    const [dbCode, backendCode, frontendCode] = await Promise.all([
-      runDBAgent(blueprint),
-      runBackendAgent(blueprint),
-      runFrontendAgent(blueprint, backendUrl),
-    ]);
-
+    // Run sequentially to avoid TPM rate limits
+    console.log('Running agents sequentially to avoid rate limits...');
+    const dbCode = await runDBAgent(blueprint);
+    const backendCode = await runBackendAgent(blueprint);
+    const frontendCode = await runFrontendAgent(blueprint, backendUrl);
     const readme = await runAssembler(blueprint);
+
     const urls = await deployApp(blueprint, dbCode, backendCode, frontendCode, readme);
 
     db.prepare(`UPDATE generations SET status='complete', blueprint=?, db_code=?,
@@ -51,13 +54,10 @@ app.post('/api/generate', async (req, res) => {
     ).run(JSON.stringify(blueprint), dbCode, backendCode, frontendCode, readme,
       urls.frontendUrl, urls.backendUrl, urls.githubUrl, id);
 
-    res.json({ id, status: 'running' });
-
   } catch (err) {
     console.error('GENERATION ERROR:', err);
     db.prepare('UPDATE generations SET status=?, error=? WHERE id=?')
       .run('failed', err.message, id);
-    res.status(500).json({ error: err.message });
   }
 });
 
@@ -77,6 +77,7 @@ app.get('/api/generations/:id', (req, res) => {
 app.get('/api/debug', (req, res) => {
   res.json({
     env: {
+      hasGroq: !!process.env.GROQ_API_KEY,
       hasOpenRouter: !!process.env.OPENROUTER_API_KEY,
       hasGithub: !!process.env.GITHUB_TOKEN,
       hasVercel: !!process.env.VERCEL_TOKEN,

@@ -10,7 +10,7 @@ async function callAI(prompt) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'llama3-8b-8192',
+          model: 'llama-3.1-8b-instant',
           messages: [{ role: 'user', content: prompt }],
           max_tokens: 4096,
         })
@@ -18,7 +18,7 @@ async function callAI(prompt) {
       const data = await res.json();
       if (data.choices?.[0]?.message?.content) return data.choices[0].message.content;
       const match = data.error?.message?.match(/try again in ([0-9.]+)s/);
-      const wait = match ? Math.ceil(parseFloat(match[1])) + 2 : 30;
+      const wait = match ? Math.ceil(parseFloat(match[1])) + 2 : 15;
       console.log(`⚠️ DB Agent rate limited, waiting ${wait}s...`);
       await new Promise(r => setTimeout(r, wait * 1000));
     } catch (err) {
@@ -45,13 +45,13 @@ function validateDBCode(code) {
   if (openParens !== closeParens) errors.push(`mismatched parentheses: ${openParens} vs ${closeParens}`);
 
   const prepareMatches = code.match(/db\.prepare\(['"`][^'"`]*;[^'"`]*['"`]\)/g);
-  if (prepareMatches) errors.push(`multiple SQL in db.prepare()`);
+  if (prepareMatches) errors.push('multiple SQL in db.prepare()');
 
   const forbidden = ['bcrypt', 'jsonwebtoken', 'mongoose', 'sequelize', 'axios'];
-  for (const pkg of forbidden) {
+  for (const pkg of forbidden)
     if (new RegExp(`require\\(['"]${pkg}['"]\\)`).test(code))
       errors.push(`forbidden package: ${pkg}`);
-  }
+
   return errors;
 }
 
@@ -68,7 +68,7 @@ EXACT RULES:
 5. Each INSERT: db.prepare('INSERT INTO table (col1, col2) VALUES (?, ?)').run(val1, val2);
 6. Every db.prepare() must have EXACTLY ONE SQL statement — no semicolons inside
 7. Last line: module.exports = db;
-8. Only packages: better-sqlite3, path — nothing else
+8. Only packages: better-sqlite3, path
 9. Include 5 realistic seed rows
 10. Every { must have matching } and every ( must have matching )
 
