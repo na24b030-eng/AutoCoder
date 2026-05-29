@@ -142,4 +142,9 @@ Reply with ONLY JSX code — no markdown, no backticks, no explanation.`);
       return cleaned;
     }
     console.warn(`⚠️ Frontend Agent attempt ${attempt} errors:`, errors);
-    if
+    if (attempt < maxAttempts) await new Promise(r => setTimeout(r, 5000));
+  }
+  throw new Error('Frontend Agent: failed after 3 attempts');
+}
+
+module.exports = { runFrontendAgent };
