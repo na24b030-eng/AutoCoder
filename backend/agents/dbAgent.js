@@ -63,7 +63,8 @@ Write COMPLETE Node.js code for db/schema.js using better-sqlite3.
 EXACT RULES:
 1. First line: const Database = require('better-sqlite3');
 2. Second line: const path = require('path');
-3. Third line: const db = new Database(path.join(__dirname, '..', 'app.db'));
+3. Third line must be EXACTLY: const db = new Database(path.join(__dirname, '..', 'app.db'));
+   Do NOT use any variable for the path — write it exactly as shown above
 4. Use ONE db.exec() call with a template literal for ALL CREATE TABLE statements
 5. Each INSERT: db.prepare('INSERT INTO table (col1, col2) VALUES (?, ?)').run(val1, val2);
 6. Every db.prepare() must have EXACTLY ONE SQL statement — no semicolons inside
